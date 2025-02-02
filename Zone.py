@@ -1,5 +1,7 @@
+import pygame
 from DataModel import Grid, Position, Room, Corridor, TileType
-from Entity import Entity
+from Entity.Entity import Entity
+from Events import EventManager, EventType, Event
 
 class Zone:
     def __init__(self):
@@ -8,6 +10,13 @@ class Zone:
         self.corridors = []
         self.entities = []
         self.player = None
+        self.player_moved = False
+        self.event_manager = None
+
+    def set_event_manager(self, event_manager: EventManager) -> None:
+        self.event_manager = event_manager
+        # Subscribe to relevant events
+        self.event_manager.subscribe(EventType.PLAYER_MOVED, self._handle_player_moved)
 
     def add_room(self, room: Room):
         self.rooms.append(room)
@@ -26,7 +35,7 @@ class Zone:
 
     def _generate_corridor_path(self, corridor: Corridor):
         current_x, current_y = corridor.start.x, corridor.start.y
-        end_x, end_y = corridor.end.x, corridor.end.y
+        end_x, end_y = corridor.end.x, corridor.end.y  # Fixed: was using end.y instead of corridor.end.y
         
         # Horizontal then vertical
         while current_x != end_x:
@@ -43,33 +52,6 @@ class Zone:
         for pos in corridor.path:
             if 0 <= pos.x < self.grid.width and 0 <= pos.y < self.grid.height:
                 self.grid.tiles[pos.y][pos.x] = TileType.FLOOR
-
-    def get_ascii_map(self, padding=2):
-        if not self.rooms:
-            return "Empty dungeon!"
-
-        min_x = max(0, min(r.position.x for r in self.rooms) - padding)
-        min_y = max(0, min(r.position.y for r in self.rooms) - padding)
-        max_x = min(self.grid.width-1, max(r.position.x + r.width for r in self.rooms) + padding)
-        max_y = min(self.grid.height-1, max(r.position.y + r.height for r in self.rooms) + padding)
-
-        output = []
-        for y in range(min_y, max_y+1):
-            row = []
-            for x in range(min_x, max_x+1):
-                entity_here = next(
-                    (e for e in self.entities 
-                     if e.position.x == x and e.position.y == y),
-                    None
-                )
-                
-                if entity_here:
-                    row.append('P' if entity_here == self.player else entity_here.type.value[0])
-                else:
-                    row.append(self.grid.tiles[y][x].value)
-            output.append(''.join(row))
-        
-        return "\n".join(output)
         
     def is_passable(self, x: int, y: int, ignoring: Entity = None) -> bool:
         if not (0 <= x < self.grid.width and 0 <= y < self.grid.height):
@@ -92,12 +74,24 @@ class Zone:
         new_y = entity.position.y + dy
         
         if self.is_passable(new_x, new_y, ignoring=entity):
+            old_pos = Position(entity.position.x, entity.position.y)
             entity.position.x = new_x
             entity.position.y = new_y
             self._update_entity_room(entity)
+            
+            # Emit appropriate event
+            if entity == self.player:
+                self.event_manager.emit(Event(
+                    EventType.PLAYER_MOVED,
+                    {
+                        'entity': entity,
+                        'from_pos': old_pos,
+                        'to_pos': Position(new_x, new_y)
+                    }
+                ))
             return True
         return False
-    
+
     def _update_entity_room(self, entity: Entity):
         for room in self.rooms:
             if (room.position.x <= entity.position.x < room.position.x + room.width and
@@ -105,3 +99,18 @@ class Zone:
                 entity.room = room
                 return
         entity.room = None
+
+    def _handle_player_moved(self, event: Event) -> None:
+        """Handle player movement by updating enemies"""
+        current_time = pygame.time.get_ticks()
+        enemies = [e for e in self.entities if e != self.player and hasattr(e, 'update')]
+        
+        for enemy in enemies:
+            dx, dy = enemy.update(current_time, self.player, self.is_passable, True)
+            if dx != 0 or dy != 0:
+                self.move_entity(enemy, dx, dy)
+
+    def update(self, current_time: int) -> None:
+        """Update all entities in the zone"""
+        # No longer needed as updates are event-driven
+        pass

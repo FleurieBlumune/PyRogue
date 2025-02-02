@@ -1,6 +1,7 @@
 from Zone import Zone
 from DataModel import Room, Position, Corridor
-from Player import Player
+from Entity.Player import Player
+from Entity.Enemy import Enemy
 import random
 
 class DungeonGenerator:
@@ -10,6 +11,7 @@ class DungeonGenerator:
         self.min_room_size = 4
         self.max_room_size = 10
         self.dungeon_padding = 2
+        self.num_enemies = 3  # Number of enemies to spawn
 
     def generate(self) -> Zone:
         zone = Zone()
@@ -28,6 +30,17 @@ class DungeonGenerator:
         player = Player(rooms[0].center())
         zone.player = player
         zone.entities.append(player)
+        
+        # Place enemies in random rooms (excluding first room)
+        for _ in range(self.num_enemies):
+            if len(rooms) > 1:  # Only if we have rooms other than the starting room
+                room = random.choice(rooms[1:])  # Select random room except first
+                enemy_pos = Position(
+                    random.randint(room.position.x + 1, room.position.x + room.width - 2),
+                    random.randint(room.position.y + 1, room.position.y + room.height - 2)
+                )
+                enemy = Enemy(enemy_pos)
+                zone.entities.append(enemy)
         
         return zone
 

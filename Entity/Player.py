@@ -1,5 +1,5 @@
 import pygame
-from Entity import Entity, EntityType
+from Entity.Entity import Entity, EntityType
 from DataModel import Position
 
 class Player(Entity):

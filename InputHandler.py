@@ -1,16 +1,24 @@
 import pygame
 from DataModel import Position
+from Events import EventManager, EventType, Event
 
 class InputHandler:
-    def __init__(self, zone, renderer):
+    def __init__(self, zone, renderer, event_manager: EventManager):
         self.zone = zone
         self.renderer = renderer
         self.pressed_keys = {}
         self.key_repeat_delay = 200
         self.key_repeat_rate = 50
         
+        # Add mouse drag tracking
+        self.is_dragging = False
+        self.last_mouse_pos = None
+        self.manual_camera_control = False
+        
         # Initialize pygame key repeat
         pygame.key.set_repeat(self.key_repeat_delay, self.key_repeat_rate)
+        
+        self.event_manager = event_manager
 
     def handle_input(self):
         current_time = pygame.time.get_ticks()
@@ -18,10 +26,10 @@ class InputHandler:
         
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                quit_game = True
+                self.event_manager.emit(Event(EventType.GAME_QUIT))
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    quit_game = True
+                    self.event_manager.emit(Event(EventType.GAME_QUIT))
                 else:
                     self._handle_movement(event.key)
                     self.pressed_keys[event.key] = current_time
@@ -31,10 +39,26 @@ class InputHandler:
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:  # Left click
                     self._handle_mouse_click(event.pos)
+                elif event.button == 3:  # Right click
+                    self.is_dragging = True
+                    self.last_mouse_pos = event.pos
+                    self.manual_camera_control = True
                 elif event.button == 4:  # Mouse wheel up
                     self.renderer.adjust_zoom(self.renderer.zoom_step)
                 elif event.button == 5:  # Mouse wheel down
                     self.renderer.adjust_zoom(-self.renderer.zoom_step)
+            elif event.type == pygame.MOUSEBUTTONUP:
+                if event.button == 3:  # Right click release
+                    self.is_dragging = False
+                    self.last_mouse_pos = None
+            elif event.type == pygame.MOUSEMOTION:
+                if self.is_dragging and self.last_mouse_pos:
+                    dx = self.last_mouse_pos[0] - event.pos[0]
+                    dy = self.last_mouse_pos[1] - event.pos[1]
+                    self.renderer.camera.move(dx, dy)
+                    self.last_mouse_pos = event.pos
+            elif event.type == pygame.VIDEORESIZE:
+                self.renderer.handle_resize(event.w, event.h)
 
         self._handle_key_repeats(current_time)
         self._handle_path_movement(current_time)
@@ -48,6 +72,10 @@ class InputHandler:
             if dx != 0 or dy != 0:
                 self.zone.move_entity(self.zone.player, dx, dy)
                 self.zone.player.last_move_time = current_time
+                # Reset manual camera control when player moves
+                if self.manual_camera_control:
+                    self.manual_camera_control = False
+                    self.renderer.center_on_entity(self.zone.player)
 
     def _handle_mouse_click(self, pos):
         tile_x = (pos[0] + self.renderer.camera.x) // self.renderer.tile_size
