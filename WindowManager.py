@@ -27,6 +27,8 @@ class WindowManager:
         self.current_height = self.resolutions[0][1]
         self.fullscreen = False
         self.screen = None
+        self.current_resolution_index = 0
+        self.windowed_resolution_index = 0
         
     def set_mode(self, width: int, height: int, fullscreen: bool = False) -> pygame.Surface:
         """Set the display mode and return the screen surface."""
@@ -74,3 +76,38 @@ class WindowManager:
     def get_monitor_size(self) -> tuple[int, int]:
         """Get monitor dimensions."""
         return self.monitor_width, self.monitor_height
+
+    def cycle_resolution(self) -> tuple[int, int]:
+        """Cycle to next available resolution and return it."""
+        if not self.fullscreen:
+            self.current_resolution_index = (self.current_resolution_index + 1) % len(self.resolutions)
+            width, height = self.resolutions[self.current_resolution_index]
+            self.set_mode(width, height, False)
+        return self.get_screen_size()
+
+    def get_current_resolution_index(self) -> int:
+        """Get the index of current resolution in the resolutions list."""
+        return self.current_resolution_index
+
+    def toggle_fullscreen(self) -> None:
+        """Toggle between fullscreen and windowed mode."""
+        self.fullscreen = not self.fullscreen
+        if self.fullscreen:
+            self.windowed_resolution_index = self.current_resolution_index
+            if (self.monitor_width, self.monitor_height) not in self.resolutions:
+                self.resolutions.append((self.monitor_width, self.monitor_height))
+            self.current_resolution_index = self.resolutions.index((self.monitor_width, self.monitor_height))
+        else:
+            self.current_resolution_index = self.windowed_resolution_index
+            
+        width, height = self.resolutions[self.current_resolution_index]
+        self.set_mode(width, height, self.fullscreen)
+
+    def get_resolution_str(self) -> str:
+        """Get current resolution as a string."""
+        width, height = self.resolutions[self.current_resolution_index]
+        return f"{width}x{height}"
+
+    def get_current_resolution(self) -> tuple[int, int]:
+        """Get current resolution based on fullscreen state."""
+        return (self.monitor_width, self.monitor_height) if self.fullscreen else self.resolutions[self.current_resolution_index]
