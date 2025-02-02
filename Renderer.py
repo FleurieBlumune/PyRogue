@@ -3,6 +3,7 @@ from typing import Dict, Tuple, List
 from Zone import Zone
 from DataModel import TileType
 from Entity.Entity import EntityType  # Assumes an Entity class exists elsewhere
+from WindowManager import WindowManager
 
 
 class Camera:
@@ -42,24 +43,10 @@ class Renderer:
             fullscreen (bool): Whether to start in fullscreen mode.
         """
         pygame.init()
+        self.window_manager = WindowManager()
         self.width = width
         self.height = height
-
-        # Set display mode based on fullscreen setting
-        if fullscreen:
-            # Get monitor size for borderless fullscreen
-            info = pygame.display.Info()
-            self.width = info.current_w
-            self.height = info.current_h
-            self.screen = pygame.display.set_mode(
-                (self.width, self.height),
-                pygame.NOFRAME
-            )
-        else:
-            self.screen = pygame.display.set_mode(
-                (width, height),
-                pygame.RESIZABLE
-            )
+        self.screen = self.window_manager.set_mode(width, height, fullscreen)
 
         self.base_tile_size: int = 32  # Base size for tiles
         self.zoom_level: float = 1.0   # Current zoom level
@@ -157,9 +144,8 @@ class Renderer:
         """
         Handle window resize events.
         """
-        self.width = new_width
-        self.height = new_height
-        self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
+        self.window_manager.handle_resize(new_width, new_height)
+        self.width, self.height = self.window_manager.get_screen_size()
 
     def render(self, zone: Zone) -> None:
         """

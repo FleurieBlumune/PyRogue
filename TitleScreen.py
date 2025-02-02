@@ -1,5 +1,8 @@
 import pygame
+import os
 from enum import Enum, auto
+import ctypes
+from WindowManager import WindowManager
 
 class MenuState(Enum):
     MAIN = auto()
@@ -7,26 +10,33 @@ class MenuState(Enum):
 
 class TitleScreen:
     def __init__(self, width: int, height: int):
-        self.resolutions = [
-            (800, 600),
-            (1024, 768),
-            (1280, 720),
-            (1366, 768),
-            (1920, 1080)
-        ]
+        self.window_manager = WindowManager()
+        self.resolutions = self.window_manager.resolutions
         self.current_resolution_index = 0  # Default to first resolution
+        self.windowed_resolution_index = 0   # Track windowed mode resolution separately
+
         # Use the preset resolution as the starting window size.
         self.width, self.height = self.resolutions[self.current_resolution_index]
-        self.screen = pygame.display.set_mode((self.width, self.height))
+        self.screen = self.window_manager.set_mode(width, height)
         self.font_large = pygame.font.Font(None, 74)
         self.font_small = pygame.font.Font(None, 36)
         self.state = MenuState.MAIN
         self.fullscreen = False
         self.selected_option = 0
-        # Get the current display info for borderless fullscreen
-        self.display_info = pygame.display.Info()
-        self.monitor_width = self.display_info.current_w
-        self.monitor_height = self.display_info.current_h
+
+        # Get actual screen dimensions (including taskbar)
+        try:
+            # Windows-specific solution using ctypes for full screen size
+            user32 = ctypes.windll.user32
+            self.monitor_width = user32.GetSystemMetrics(0)   # SM_CXSCREEN
+            self.monitor_height = user32.GetSystemMetrics(1)  # SM_CYSCREEN
+        except:
+            # Fallback to pygame's method if ctypes fails
+            modes = pygame.display.list_modes()
+            if modes and len(modes) > 0:
+                self.monitor_width, self.monitor_height = modes[0]
+            else:
+                self.monitor_width, self.monitor_height = width, height
 
     @property
     def current_resolution(self) -> tuple[int, int]:
@@ -83,17 +93,20 @@ class TitleScreen:
     def _handle_fullscreen_toggle(self):
         self.fullscreen = not self.fullscreen
         if self.fullscreen:
-            # Use monitor resolution for borderless fullscreen.
-            self.screen = pygame.display.set_mode(
-                (self.monitor_width, self.monitor_height),
-                pygame.NOFRAME
-            )
-            self.width, self.height = self.monitor_width, self.monitor_height
+            # Save current windowed resolution index
+            self.windowed_resolution_index = self.current_resolution_index
+            monitor_res = self.window_manager.get_monitor_size()
+            if monitor_res not in self.resolutions:
+                self.resolutions.append(monitor_res)
+            self.current_resolution_index = self.resolutions.index(monitor_res)
         else:
-            # Return to windowed mode with a default resolution.
-            new_width, new_height = self.resolutions[self.current_resolution_index]
-            self.screen = pygame.display.set_mode((new_width, new_height), pygame.RESIZABLE)
-            self.width, self.height = new_width, new_height
+            # Restore windowed resolution
+            self.current_resolution_index = self.windowed_resolution_index
+            
+        new_width, new_height = self.resolutions[self.current_resolution_index]
+        self.screen = self.window_manager.set_mode(new_width, new_height, self.fullscreen)
+        self.width, self.height = self.window_manager.get_screen_size()
+
     
     def _change_resolution(self):
         self.current_resolution_index = (self.current_resolution_index + 1) % len(self.resolutions)
