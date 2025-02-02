@@ -2,8 +2,8 @@ import pygame
 import Events
 # from Events import EventType, Event
 from DungeonGenerator import DungeonGenerator
-from Renderer import Renderer
-from InputHandler import InputHandler
+from Core.Renderer import Renderer
+from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
 
 class GameLoop:
