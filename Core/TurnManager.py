@@ -48,6 +48,14 @@ class TurnManager:
         and emits a TURN_ENDED event when processing is complete.
         """
         self.current_turn += 1
+        self.logger.debug(f"Starting turn {self.current_turn}")
+        
+        # Signal turn start
+        self.event_manager.emit(GameEventType.TURN_STARTED, turn_number=self.current_turn)
+        
+        # Process any immediate events
         self.event_manager.process_events()
-        # After all immediate events are processed, signal turn end
+        
+        # Signal turn end
+        self.logger.debug(f"Ending turn {self.current_turn}")
         self.event_manager.emit(GameEventType.TURN_ENDED, turn_number=self.current_turn)

@@ -8,6 +8,7 @@ from Entity.Player import Player
 from Pathfinding import find_path
 from Core.Events import EventManager, GameEventType
 import pygame
+import logging
 
 class Enemy(Entity):
     """
@@ -33,55 +34,70 @@ class Enemy(Entity):
         super().__init__(EntityType.ENEMY, position, blocks_movement=True)
         self.detection_range = 8  # How many tiles away the enemy can see the player
         self.current_path = []
-        event_manager = EventManager.get_instance()
-        event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
+        self.last_move_time = 0
+        self.move_delay = 100  # Time between moves
+        self.event_manager = EventManager.get_instance()
+        self.logger = logging.getLogger(__name__)
+        self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
+        self.event_manager.subscribe(GameEventType.TURN_ENDED, self._handle_turn_ended)
 
-    def _handle_player_moved(self, args: dict):
+    def _handle_player_moved(self, event):
         """
         Handle player movement events by updating pathfinding.
 
         Args:
             args (dict): Event arguments containing player entity and position
         """
-        player = args['entity']
-        player_pos = args['to_pos']
-        print(f"Player moved to {player_pos} at time {pygame.time.get_ticks()}")
-        dx = abs(self.position.x - player_pos.x)
-        dy = abs(self.position.y - player_pos.y)
-        
-        if dx <= self.detection_range and dy <= self.detection_range:
-            path = find_path(self.position, player_pos, self.is_passable)
-            if path:
-                self.current_path = path
+        try:
+            # Handle both event and event.dict cases
+            args = event.dict if hasattr(event, 'dict') else event
+            player_pos = args.get('to_pos')
+            if not player_pos:
+                self.logger.warning("Player moved event missing position")
+                return
 
-
-    # def update(self, current_time: int, player: Player, is_passable, player_moved: bool) -> tuple[int, int]:
-    #     """
-    #     Update the enemy's behavior and return movement direction if it's time to move.
-    #     Returns a tuple of (dx, dy) movement direction.
-    #     """
-    #     print(f"Enemy update called at time {current_time} with player at {player.position}")
-
-    #     # Only move if the player has moved this turn
-    #     if not player_moved:
-    #         return (0, 0)
+            dx = abs(self.position.x - player_pos.x)
+            dy = abs(self.position.y - player_pos.y)
             
-    #     if current_time - self.last_move_time < self.move_delay:
-    #         return (0, 0)
+            if dx <= self.detection_range and dy <= self.detection_range:
+                path = find_path(self.position, player_pos, self.is_passable)
+                if path:
+                    self.current_path = path
+                    self.logger.debug(f"Enemy found path to player: {path}")
+        except Exception as e:
+            self.logger.error(f"Error handling player movement: {e}")
 
-    #     # Calculate distance to player
-    #     dx = abs(self.position.x - player.position.x)
-    #     dy = abs(self.position.y - player.position.y)
-        
-    #     # If player is within detection range, try to path to them
-    #     if dx <= self.detection_range and dy <= self.detection_range:
-    #         path = find_path(self.position, player.position, is_passable)
-    #         if path:  # Only update path if we found a valid one
-    #             self.current_path = path
-    #             next_pos = path[0]
-    #             move_dx = next_pos.x - self.position.x
-    #             move_dy = next_pos.y - self.position.y
-    #             self.last_move_time = current_time
-    #             return (move_dx, move_dy)
+    def _handle_turn_ended(self, event):
+        """Move along path when turn ends"""
+        try:
+            if not self.current_path:
+                return
+
+            next_pos = self.current_path[0]
+            if not self.is_passable(next_pos):
+                self.logger.debug(f"Next position {next_pos} is not passable")
+                self.current_path = []
+                return
+
+            dx = next_pos.x - self.position.x
+            dy = next_pos.y - self.position.y
             
-    #     return (0, 0)
+            # Remove the position we're moving to
+            self.current_path.pop(0)
+            
+            # Update position before emitting event
+            old_pos = Position(self.position.x, self.position.y)
+            self.position = next_pos
+            
+            # Emit movement event
+            self.event_manager.emit(
+                GameEventType.ENTITY_MOVED,
+                entity=self,
+                from_pos=old_pos,
+                to_pos=next_pos,
+                dx=dx,
+                dy=dy
+            )
+            self.logger.debug(f"Enemy moved to {next_pos}")
+        except Exception as e:
+            self.logger.error(f"Error during turn end movement: {e}")

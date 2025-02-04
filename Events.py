@@ -82,9 +82,9 @@ class EventManager:
         """
         events_handled = False
         for event in pygame.event.get():
-            self.logger.debug(f"Processing event: {event}")
+            self.logger.debug(f"Processing event: {event}, type: {event.type}")
             
-            if event.type == GameEventType.GAME_QUIT:
+            if event.type == pygame.QUIT:
                 self.logger.info("Quit event received")
                 if self.quit_handler:
                     self.quit_handler(event)
@@ -95,15 +95,18 @@ class EventManager:
             if event.type in self.subscriptions:
                 events_handled = True
                 for handler in self.subscriptions[event.type]:
-                    self.logger.debug(f"Calling handler {handler.__name__} for event {event}")
-                    handler(event)
+                    try:
+                        self.logger.debug(f"Calling handler {handler.__name__} for event {event}")
+                        handler(event)
+                    except Exception as e:
+                        self.logger.error(f"Error in event handler {handler.__name__}: {e}")
         
-        if events_handled:
-            self.emit(GameEventType.EVENT_QUEUE_PROCESSED)
-            
         return events_handled
 
     def emit(self, event_type: int, **kwargs):
         """Post events to Pygame's queue"""
         self.logger.debug(f"Emitting event type {event_type} with args {kwargs}")
-        pygame.event.post(pygame.event.Event(event_type, kwargs))
+        try:
+            pygame.event.post(pygame.event.Event(event_type, kwargs))
+        except Exception as e:
+            self.logger.error(f"Error posting event {event_type}: {e}")

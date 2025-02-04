@@ -3,9 +3,7 @@ Main game loop handling initialization, game state management, and core game flo
 """
 
 import pygame
-from Core.TurnManager import TurnManager
 import Core.Events as Events
-# from Events import EventType, Event
 from DungeonGenerator import DungeonGenerator
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler

@@ -100,8 +100,6 @@ class InputHandler:
             elif event.type == pygame.VIDEORESIZE:
                 self.renderer.handle_resize(event.w, event.h)
 
-
-
         self._handle_key_repeats(current_time)
         self._handle_path_movement(current_time)
         
@@ -112,6 +110,7 @@ class InputHandler:
         if current_time - self.zone.player.last_move_time >= self.zone.player.move_delay:
             dx, dy = self.zone.player.get_movement_from_key(key)
             if dx != 0 or dy != 0:
+                self.turn_manager.start_turn()
                 self.zone.move_entity(self.zone.player, dx, dy)
                 self.zone.player.last_move_time = current_time
                 # Reset manual camera control when player moves
