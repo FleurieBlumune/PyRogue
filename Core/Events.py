@@ -1,16 +1,9 @@
-"""
-Event management system for the game.
-Provides a centralized event handling mechanism using a singleton pattern.
-Handles both pygame events and custom game events.
-"""
-
 import pygame
 import logging
 from enum import IntEnum
 from collections import defaultdict
 
 class GameEventType(IntEnum):
-    """Enumeration of custom game events extending pygame's event system."""
     PLAYER_MOVED = pygame.USEREVENT + 1
     ENTITY_MOVED = pygame.USEREVENT + 2
     PLAYER_TURN_ENDED = pygame.USEREVENT + 3
@@ -21,19 +14,6 @@ class GameEventType(IntEnum):
     TURN_ENDED = pygame.USEREVENT + 7
 
 class EventManager:
-    """
-    Singleton event manager that handles both pygame and custom game events.
-    
-    Provides methods for:
-    - Subscribing/unsubscribing to events
-    - Processing events from the queue
-    - Emitting new events
-    
-    Attributes:
-        subscriptions (defaultdict): Maps event types to lists of handler functions
-        quit_handler (callable): Special handler for quit events
-        logger (Logger): Logger instance for debugging event flow
-    """
     _instance = None
 
     def __new__(cls):
@@ -58,13 +38,7 @@ class EventManager:
         return EventManager._instance
 
     def subscribe(self, event_type: int, handler: callable):
-        """
-        Subscribe a handler function to an event type.
-
-        Args:
-            event_type (int): The type of event to subscribe to
-            handler (callable): The function to call when event occurs
-        """
+        """Subscribe to pygame event types or our GameEventType"""
         self.subscriptions[event_type].append(handler)
         self.logger.debug(f"Subscribed handler {handler.__name__} to event type {event_type}")
 
@@ -74,12 +48,7 @@ class EventManager:
             self.logger.debug(f"Unsubscribed handler {handler.__name__} from event type {event_type}")
 
     def process_events(self) -> bool:
-        """
-        Process all pending events in the queue.
-
-        Returns:
-            bool: True if any events were handled, False otherwise
-        """
+        """Process all pending events and return True if any events were handled"""
         events_handled = False
         for event in pygame.event.get():
             self.logger.debug(f"Processing event: {event}")

@@ -1,7 +1,7 @@
 import pygame
 from DataModel import Grid, Position, Room, Corridor, TileType
 from Entity.Entity import Entity
-from Events import EventManager, EventType, Event
+from Core.Events import EventManager, GameEventType
 
 class Zone:
     def __init__(self):
@@ -16,7 +16,7 @@ class Zone:
     def set_event_manager(self, event_manager: EventManager) -> None:
         self.event_manager = event_manager
         # Subscribe to relevant events
-        self.event_manager.subscribe(EventType.PLAYER_MOVED, self._handle_player_moved)
+        self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
 
     def add_room(self, room: Room):
         self.rooms.append(room)
@@ -79,16 +79,15 @@ class Zone:
             entity.position.y = new_y
             self._update_entity_room(entity)
             
-            # Emit appropriate event
             if entity == self.player:
-                self.event_manager.emit(Event(
-                    EventType.PLAYER_MOVED,
-                    {
+                self.event_manager.emit(
+                    GameEventType.PLAYER_MOVED,
+                    args = {
                         'entity': entity,
                         'from_pos': old_pos,
                         'to_pos': Position(new_x, new_y)
                     }
-                ))
+                )
             return True
         return False
 
@@ -100,7 +99,7 @@ class Zone:
                 return
         entity.room = None
 
-    def _handle_player_moved(self, event: Event) -> None:
+    def _handle_player_moved(self) -> None:
         """Handle player movement by updating enemies"""
         current_time = pygame.time.get_ticks()
         enemies = [e for e in self.entities if e != self.player and hasattr(e, 'update')]

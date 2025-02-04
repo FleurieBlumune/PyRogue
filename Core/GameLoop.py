@@ -1,5 +1,10 @@
+"""
+Main game loop handling initialization, game state management, and core game flow.
+"""
+
 import pygame
-import Events
+from Core.TurnManager import TurnManager
+import Core.Events as Events
 # from Events import EventType, Event
 from DungeonGenerator import DungeonGenerator
 from Core.Renderer import Renderer
@@ -7,15 +12,46 @@ from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
 
 class GameLoop:
+    """
+    Core game loop handler that manages the main game flow and initialization.
+
+    Responsible for:
+    - Initializing game systems
+    - Showing title screen
+    - Managing game state
+    - Coordinating updates and rendering
+    
+    Attributes:
+        width (int): Window width
+        height (int): Window height
+        running (bool): Game running state
+        event_manager (EventManager): Central event system
+        settings (dict): Game settings from title screen
+    """
+
     def __init__(self, width=800, height=600):
-        pygame.init()  # Move pygame.init() here
+        """
+        Initialize the game loop with specified dimensions.
+
+        Args:
+            width (int): Initial window width
+            height (int): Initial window height
+        """
+        pygame.init()
         self.display_info = pygame.display.Info()
         self.width = width
         self.height = height
         self.running = True
+        self.event_manager = Events.EventManager.get_instance()  # Use singleton
         self.settings = self.show_title_screen()
 
     def show_title_screen(self) -> dict:
+        """
+        Display the title screen and get initial settings.
+
+        Returns:
+            dict: Game settings selected by the user
+        """
         title_screen = TitleScreen(self.width, self.height)
         settings = {}
         while self.running:
@@ -32,14 +68,16 @@ class GameLoop:
         return settings
 
     def _initialize_game(self, settings: dict):
+        """
+        Initialize game components based on settings.
+
+        Args:
+            settings (dict): Game settings from title screen
+        """
         # Use the resolution provided by TitleScreen.
         if settings.get('resolution'):
             self.width, self.height = settings['resolution']
         
-        # Remove the block that overrides resolution when fullscreen is set.
-        # The TitleScreen already sets self.width/self.height correctly for fullscreen.
-        
-        self.event_manager = Events.EventManager()
         self.zone = self._generate_dungeon()
         
         fullscreen = settings.get('fullscreen', False)
@@ -52,17 +90,28 @@ class GameLoop:
         self.zone.set_event_manager(self.event_manager)
         
         # Subscribe to quit event.
-        self.event_manager.subscribe(Events.EventType.GAME_QUIT, self._handle_quit)
+        self.event_manager.subscribe(Events.GameEventType.GAME_QUIT, self._handle_quit)
 
-
-    def _handle_quit(self, event: Events.Event) -> None:
+    def _handle_quit(self) -> None:
+        """
+        Handle the quit event to stop the game loop.
+        """
         self.running = False
 
     def _generate_dungeon(self):
+        """
+        Generate a new dungeon layout.
+
+        Returns:
+            Dungeon: Generated dungeon instance
+        """
         generator = DungeonGenerator(min_rooms=5, max_rooms=10)
         return generator.generate()
 
     def run(self):
+        """
+        Main game loop that handles input, updates, and rendering.
+        """
         while self.running:
             current_time = pygame.time.get_ticks()
             

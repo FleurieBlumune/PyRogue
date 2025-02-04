@@ -2,7 +2,7 @@ import pygame
 from enum import Enum, auto
 from WindowManager import WindowManager
 from Core.MenuSystem import Menu, MenuFactory, MenuItem, MenuItemType
-from Data.MenuConfigs import MENU_CONFIGS, MenuID
+from MenuConfigs import MENU_CONFIGS, MenuID
 
 class MenuState(Enum):
     MAIN = auto()

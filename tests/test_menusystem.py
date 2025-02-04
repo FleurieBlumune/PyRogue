@@ -2,7 +2,7 @@ import pytest
 import pygame
 import os
 from Core.MenuSystem import MenuItem, Menu, MenuItemType, MenuFactory
-from Data.MenuConfigs import MENU_CONFIGS, MenuID, FONT_CONFIGS
+from MenuConfigs import MENU_CONFIGS, MenuID, FONT_CONFIGS
 
 # Initialize pygame properly for testing
 pygame.init()

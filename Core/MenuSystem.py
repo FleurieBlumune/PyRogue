@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from enum import Enum, auto
 from typing import Callable, Any, Optional
 import pygame
-from Data.MenuConfigs import FONT_CONFIGS
+from MenuConfigs import FONT_CONFIGS
 
 class MenuItemType(Enum):
     TEXT = auto()
