@@ -2,3 +2,25 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# PyInstaller
+build/
+dist/
+*.spec
+!pyrogue.spec  # Keep our spec file
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.manifest
+*.spec
+game.db
+
+# Make
+.make.*
+.venv/
+
+# direnv
+.envrc
+.direnv

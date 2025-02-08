@@ -2,7 +2,7 @@
 
 from Entity.Stats import Stats
 from Entity.EntityType import EntityType
-from Data.EntityStats.default import DEFAULT_STATS
+from Data.GameData import GameData
 
 class StatsProvider:
     _instance = None
@@ -15,7 +15,6 @@ class StatsProvider:
 
     def __init__(self):
         if not self._initialized:
-            self._stats_data = DEFAULT_STATS
             self._initialized = True
 
     @staticmethod
@@ -27,5 +26,8 @@ class StatsProvider:
     def create_stats(self, entity_type: EntityType) -> Stats:
         """Create a Stats instance based on entity type."""
         type_name = entity_type.name
-        stats_data = self._stats_data.get(type_name, self._stats_data['DEFAULT'])
-        return Stats(**stats_data)
+        stats_data = GameData.get_instance().get_stats(type_name)
+        return Stats(
+            quickness=stats_data.quickness,
+            max_action_points=stats_data.max_action_points
+        )

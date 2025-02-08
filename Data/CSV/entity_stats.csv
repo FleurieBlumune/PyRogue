@@ -1,0 +1,6 @@
+entity_type,quickness,max_action_points
+PLAYER,120,1000
+HUMANOID,100,1000
+BEAST,130,800
+UNDEAD,70,1200
+MERCHANT,90,1000

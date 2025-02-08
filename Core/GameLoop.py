@@ -8,7 +8,10 @@ from DungeonGenerator import DungeonGenerator
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
+from pathlib import Path
 import logging
+import os
+import sys
 
 class GameLoop:
     """
@@ -41,7 +44,9 @@ class GameLoop:
         self.width = width
         self.height = height
         self.running = True
-        self.event_manager = Events.EventManager.get_instance()  # Use singleton
+        
+        # Initialize core systems
+        self.event_manager = Events.EventManager.get_instance()                    
         self.settings = self.show_title_screen()
 
     def show_title_screen(self) -> dict:
