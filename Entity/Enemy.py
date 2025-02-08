@@ -5,7 +5,6 @@ Enemy entity implementation with pathfinding and player tracking capabilities.
 from Entity.Entity import Entity, EntityType
 from DataModel import Position
 from Entity.Player import Player
-from Pathfinding import find_path
 from Core.Events import EventManager, GameEventType
 import pygame
 import logging
@@ -34,8 +33,6 @@ class Enemy(Entity):
         super().__init__(EntityType.ENEMY, position, blocks_movement=True)
         self.detection_range = 8  # How many tiles away the enemy can see the player
         self.current_path = []
-        self.last_move_time = 0
-        self.move_delay = 100  # Time between moves
         self.event_manager = EventManager.get_instance()
         self.logger = logging.getLogger(__name__)
         self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
@@ -49,8 +46,10 @@ class Enemy(Entity):
             args (dict): Event arguments containing player entity and position
         """
         try:
-            # Handle both event and event.dict cases
-            args = event.dict if hasattr(event, 'dict') else event
+            args = event.dict if hasattr(event, 'dict') else {}
+            # Check if the event dictionary contains an "args" key
+            if 'args' in args:
+                args = args['args']
             player_pos = args.get('to_pos')
             if not player_pos:
                 self.logger.warning("Player moved event missing position")
@@ -60,7 +59,8 @@ class Enemy(Entity):
             dy = abs(self.position.y - player_pos.y)
             
             if dx <= self.detection_range and dy <= self.detection_range:
-                path = find_path(self.position, player_pos, self.is_passable)
+                # Use the inherited pathfinder.
+                path = self.get_pathfinder().find_path(self.position, player_pos, self)
                 if path:
                     self.current_path = path
                     self.logger.debug(f"Enemy found path to player: {path}")
@@ -74,7 +74,7 @@ class Enemy(Entity):
                 return
 
             next_pos = self.current_path[0]
-            if not self.is_passable(next_pos):
+            if not self.pathfinder.is_passable(next_pos.x, next_pos.y, self):
                 self.logger.debug(f"Next position {next_pos} is not passable")
                 self.current_path = []
                 return

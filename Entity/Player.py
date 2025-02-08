@@ -20,8 +20,16 @@ class Player(Entity):
             pygame.K_KP3: (1, 1)      # Numpad 3
         }
         self.current_path = []
-        self.last_move_time = 0
-        self.move_delay = 100  # Milliseconds between moves
+
+    def handle_click(self, tile_x: int, tile_y: int) -> bool:
+        """Handle a click at the given tile coordinates"""           
+        goal = Position(tile_x, tile_y)
+        path = self.get_pathfinder().find_path(self.position, goal, self)
+        
+        if path:
+            self.set_path(path)
+            return True
+        return False
 
     def get_movement_from_key(self, key):
         return self.move_map.get(key, (0, 0))

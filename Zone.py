@@ -2,6 +2,7 @@ import pygame
 from DataModel import Grid, Position, Room, Corridor, TileType
 from Entity.Entity import Entity
 from Core.Events import EventManager, GameEventType
+from Core.Pathfinding import PathFinder
 
 class Zone:
     def __init__(self):
@@ -12,11 +13,11 @@ class Zone:
         self.player = None
         self.player_moved = False
         self.event_manager = None
+        self.pathfinder = PathFinder.get_instance()
+        self.pathfinder.set_zone(self)
 
     def set_event_manager(self, event_manager: EventManager) -> None:
         self.event_manager = event_manager
-        # Subscribe to relevant events
-        self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
 
     def add_room(self, room: Room):
         self.rooms.append(room)
@@ -26,6 +27,12 @@ class Zone:
         self.corridors.append(corridor)
         self._generate_corridor_path(corridor)
         self._carve_corridor(corridor)
+
+    def add_entity(self, entity: Entity) -> None:
+        """Add an entity to the zone"""
+        self.entities.append(entity)
+        if hasattr(entity, 'set_zone'):
+            entity.set_zone(self)
 
     def _carve_room(self, room: Room):
         for y in range(room.position.y, room.position.y + room.height):
@@ -99,15 +106,6 @@ class Zone:
                 return
         entity.room = None
 
-    def _handle_player_moved(self) -> None:
-        """Handle player movement by updating enemies"""
-        current_time = pygame.time.get_ticks()
-        enemies = [e for e in self.entities if e != self.player and hasattr(e, 'update')]
-        
-        for enemy in enemies:
-            dx, dy = enemy.update(current_time, self.player, self.is_passable, True)
-            if dx != 0 or dy != 0:
-                self.move_entity(enemy, dx, dy)
 
     def update(self, current_time: int) -> None:
         """Update all entities in the zone"""

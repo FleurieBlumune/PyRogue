@@ -10,7 +10,7 @@ class DungeonGenerator:
         self.max_rooms = max_rooms
         self.min_room_size = 4
         self.max_room_size = 10
-        self.dungeon_padding = 2
+        self.dungeon_padding = 1
         self.num_enemies = 3  # Number of enemies to spawn
 
     def generate(self) -> Zone:
@@ -52,8 +52,8 @@ class DungeonGenerator:
             for attempt in range(50):  # Limit attempts to prevent infinite loops
                 width = random.randint(self.min_room_size, self.max_room_size)
                 height = random.randint(self.min_room_size, self.max_room_size)
-                x = random.randint(self.dungeon_padding, 100 - width - self.dungeon_padding)
-                y = random.randint(self.dungeon_padding, 100 - height - self.dungeon_padding)
+                x = random.randint(self.dungeon_padding, 25 - width - self.dungeon_padding)
+                y = random.randint(self.dungeon_padding, 25 - height - self.dungeon_padding)
                 
                 new_room = Room(Position(x, y), width, height)
                 

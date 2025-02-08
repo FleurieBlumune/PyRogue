@@ -8,6 +8,7 @@ from DungeonGenerator import DungeonGenerator
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
+import logging
 
 class GameLoop:
     """
@@ -103,7 +104,7 @@ class GameLoop:
         Returns:
             Dungeon: Generated dungeon instance
         """
-        generator = DungeonGenerator(min_rooms=5, max_rooms=10)
+        generator = DungeonGenerator(min_rooms=2, max_rooms=2)
         return generator.generate()
 
     def run(self):

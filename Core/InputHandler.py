@@ -7,7 +7,6 @@ import pygame
 from Core.TurnManager import TurnManager
 from DataModel import Position
 from Core.Events import EventManager, GameEventType
-from Pathfinding import find_path
 
 class InputHandler:
     """
@@ -101,32 +100,28 @@ class InputHandler:
                 self.renderer.handle_resize(event.w, event.h)
 
         self._handle_key_repeats(current_time)
-        self._handle_path_movement(current_time)
+        self._handle_path_movement()
         
         return quit_game
 
     def _handle_movement(self, key):
-        current_time = pygame.time.get_ticks()
-        if current_time - self.zone.player.last_move_time >= self.zone.player.move_delay:
             dx, dy = self.zone.player.get_movement_from_key(key)
             if dx != 0 or dy != 0:
-                self.turn_manager.start_turn()
-                self.zone.move_entity(self.zone.player, dx, dy)
-                self.zone.player.last_move_time = current_time
-                # Reset manual camera control when player moves
-                if self.manual_camera_control:
-                    self.manual_camera_control = False
-                    self.renderer.center_on_entity(self.zone.player)
+                # Move player first so that PLAYER_MOVED is emitted afterward.
+                moved = self.zone.move_entity(self.zone.player, dx, dy)
+                if moved:
+                    # Now start the turn so that pending events (including PLAYER_MOVED) are processed.
+                    self.turn_manager.start_turn()
+                    # Reset manual camera control when player moves
+                    if self.manual_camera_control:
+                        self.manual_camera_control = False
+                        self.renderer.center_on_entity(self.zone.player)
 
     def _handle_mouse_click(self, pos):
+        """Convert screen coordinates to tile coordinates and send to player"""
         tile_x = (pos[0] + self.renderer.camera.x) // self.renderer.tile_size
         tile_y = (pos[1] + self.renderer.camera.y) // self.renderer.tile_size
-        
-        start = self.zone.player.position
-        goal = Position(tile_x, tile_y)
-        
-        path = find_path(start, goal, self.zone.is_passable)
-        self.zone.player.set_path(path)
+        self.zone.player.handle_click(tile_x, tile_y)
 
     def _handle_key_repeats(self, current_time):
         for key, start_time in list(self.pressed_keys.items()):
@@ -137,10 +132,10 @@ class InputHandler:
                     self._handle_movement(key)
                     self.pressed_keys[key] = current_time - (elapsed % self.key_repeat_rate)
 
-    def _handle_path_movement(self, current_time):
+    def _handle_path_movement(self):
+        """Handle movement along a pre-calculated path"""
         if self.zone.player.current_path:
-            if current_time - self.zone.player.last_move_time >= self.zone.player.move_delay:
-                dx, dy = self.zone.player.get_next_move()
-                if dx != 0 or dy != 0:
-                    self.zone.move_entity(self.zone.player, dx, dy)
-                    self.zone.player.last_move_time = current_time
+            dx, dy = self.zone.player.get_next_move()
+            if dx != 0 or dy != 0:
+                self.zone.move_entity(self.zone.player, dx, dy)
+                self.turn_manager.start_turn()

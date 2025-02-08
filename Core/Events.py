@@ -1,19 +1,25 @@
+"""
+Event management system for the game.
+Provides a centralized event handling mechanism using a singleton pattern.
+"""
+
 import pygame
 import logging
 from enum import IntEnum
-from collections import defaultdict
 
 class GameEventType(IntEnum):
+    """Game-specific event types extending pygame's event system"""
     PLAYER_MOVED = pygame.USEREVENT + 1
     ENTITY_MOVED = pygame.USEREVENT + 2
     PLAYER_TURN_ENDED = pygame.USEREVENT + 3
     CAMERA_MOVED = pygame.USEREVENT + 4
     GAME_QUIT = pygame.USEREVENT + 5
-    EVENT_QUEUE_PROCESSED = pygame.USEREVENT + 6
     TURN_STARTED = pygame.USEREVENT + 6
     TURN_ENDED = pygame.USEREVENT + 7
 
 class EventManager:
+    """Singleton event manager that handles both pygame and custom game events."""
+    
     _instance = None
 
     def __new__(cls):
@@ -24,55 +30,57 @@ class EventManager:
 
     def __init__(self):
         if not self._initialized:
-            self.subscriptions = defaultdict(list)
-            self.quit_handler = None
             logging.basicConfig(level=logging.DEBUG)
             self.logger = logging.getLogger(__name__)
+            self.subscriptions = {}
+            self.quit_handler = None
             self._initialized = True
+            self.logger.debug("EventManager initialized")
 
     @staticmethod
     def get_instance():
-        """Get or create the EventManager instance"""
         if EventManager._instance is None:
             EventManager()
         return EventManager._instance
 
     def subscribe(self, event_type: int, handler: callable):
-        """Subscribe to pygame event types or our GameEventType"""
+        """Subscribe to an event type with a handler function"""
+        if event_type not in self.subscriptions:
+            self.subscriptions[event_type] = []
         self.subscriptions[event_type].append(handler)
-        self.logger.debug(f"Subscribed handler {handler.__name__} to event type {event_type}")
+        self.logger.debug(f"Subscribed {handler.__name__} to {event_type}")
+        self.logger.debug(f"Current subscribers for {event_type}: {[h.__name__ for h in self.subscriptions[event_type]]}")
 
     def unsubscribe(self, event_type: int, handler: callable):
-        if handler in self.subscriptions[event_type]:
+        """Remove a handler's subscription to an event type"""
+        if event_type in self.subscriptions and handler in self.subscriptions[event_type]:
             self.subscriptions[event_type].remove(handler)
-            self.logger.debug(f"Unsubscribed handler {handler.__name__} from event type {event_type}")
+            self.logger.debug(f"Unsubscribed {handler.__name__} from {event_type}")
 
-    def process_events(self) -> bool:
-        """Process all pending events and return True if any events were handled"""
-        events_handled = False
+    def process_events(self):
+        """Process all pending events"""
         for event in pygame.event.get():
             self.logger.debug(f"Processing event: {event}")
             
-            if event.type == GameEventType.GAME_QUIT:
-                self.logger.info("Quit event received")
+            if event.type == pygame.QUIT:
                 if self.quit_handler:
                     self.quit_handler(event)
                 else:
                     pygame.quit()
                     raise SystemExit
-                    
-            if event.type in self.subscriptions:
-                events_handled = True
-                for handler in self.subscriptions[event.type]:
-                    self.logger.debug(f"Calling handler {handler.__name__} for event {event}")
-                    handler(event)
-        
-        if events_handled:
-            self.emit(GameEventType.EVENT_QUEUE_PROCESSED)
             
-        return events_handled
+            if event.type in self.subscriptions:
+                for handler in self.subscriptions[event.type]:
+                    try:
+                        self.logger.debug(f"Calling handler {handler.__name__} for {event}")
+                        handler(event)
+                    except Exception as e:
+                        self.logger.error(f"Error in handler {handler.__name__}: {e}")
 
     def emit(self, event_type: int, **kwargs):
-        """Post events to Pygame's queue"""
-        self.logger.debug(f"Emitting event type {event_type} with args {kwargs}")
-        pygame.event.post(pygame.event.Event(event_type, kwargs))
+        """Emit a new event"""
+        self.logger.debug(f"Emitting event {event_type} with {kwargs}")
+        try:
+            pygame.event.post(pygame.event.Event(event_type, kwargs))
+        except Exception as e:
+            self.logger.error(f"Error posting event {event_type}: {e}")
