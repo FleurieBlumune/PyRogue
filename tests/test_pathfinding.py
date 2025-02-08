@@ -102,7 +102,7 @@ class TestPathFinder:
         pathfinder.set_zone(empty_zone)
         
         # Create a blocking entity in the middle
-        blocker = Entity(EntityType.ENEMY, Position(2, 2), blocks_movement=True)
+        blocker = Entity(EntityType.NPC, Position(2, 2), blocks_movement=True)
         empty_zone.add_entity(blocker)
         
         # Try to path from left to right of blocker

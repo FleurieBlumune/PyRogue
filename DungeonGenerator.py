@@ -1,7 +1,8 @@
 from Zone import Zone
 from DataModel import Room, Position, Corridor
 from Entity.Player import Player
-from Entity.Enemy import Enemy
+from Entity.NPC import NPC
+from Entity.EntityType import EntityType
 import random
 
 class DungeonGenerator:
@@ -11,7 +12,6 @@ class DungeonGenerator:
         self.min_room_size = 4
         self.max_room_size = 10
         self.dungeon_padding = 1
-        self.num_enemies = 3  # Number of enemies to spawn
 
     def generate(self) -> Zone:
         zone = Zone()
@@ -31,16 +31,8 @@ class DungeonGenerator:
         zone.player = player
         zone.entities.append(player)
         
-        # Place enemies in random rooms (excluding first room)
-        for _ in range(self.num_enemies):
-            if len(rooms) > 1:  # Only if we have rooms other than the starting room
-                room = random.choice(rooms[1:])  # Select random room except first
-                enemy_pos = Position(
-                    random.randint(room.position.x + 1, room.position.x + room.width - 2),
-                    random.randint(room.position.y + 1, room.position.y + room.height - 2)
-                )
-                enemy = Enemy(enemy_pos)
-                zone.entities.append(enemy)
+        # Place NPCs using the new _place_entities method
+        self._place_entities(zone, rooms)
         
         return zone
 
@@ -73,3 +65,21 @@ class DungeonGenerator:
                 new_room.position.y + new_room.height + 2 > room.position.y):
                 return True
         return False
+
+    def _place_entities(self, zone, rooms):
+        """Place NPCs in rooms (excluding the first room)"""
+        for room in rooms[1:]:  # Skip first room (player spawn)
+            if random.random() < 0.7:  # 70% chance of entity
+                pos = Position(
+                    random.randint(room.position.x + 1, room.position.x + room.width - 2),
+                    random.randint(room.position.y + 1, room.position.y + room.height - 2)
+                )
+                # Random selection of NPC type
+                npc_type = random.choice([
+                    EntityType.HUMANOID,
+                    EntityType.BEAST,
+                    EntityType.UNDEAD,
+                    EntityType.MERCHANT
+                ])
+                new_npc = NPC(pos, npc_type)
+                zone.add_entity(new_npc)

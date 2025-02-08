@@ -3,7 +3,7 @@ from typing import Dict, Tuple, List
 from Zone import Zone
 from DataModel import TileType
 from Entity.Entity import EntityType  # Assumes an Entity class exists elsewhere
-from WindowManager import WindowManager
+from Core.WindowManager import WindowManager
 
 
 class Camera:
@@ -59,9 +59,10 @@ class Renderer:
         # Define colors for different entity types.
         self.entity_colors: Dict[EntityType, Tuple[int, int, int]] = {
             EntityType.PLAYER: (0, 255, 0),    # Green
-            EntityType.ENEMY: (255, 0, 0),     # Red
-            EntityType.CHEST: (255, 215, 0),   # Gold
-            EntityType.KEY: (255, 255, 0),     # Yellow
+            EntityType.HUMANOID: (0, 0, 255),    # Blue
+            EntityType.BEAST: (255, 0, 0),     # Red
+            EntityType.UNDEAD: (255, 215, 0),   # Gold
+            EntityType.MERCHANT: (255, 255, 0),     # Yellow
         }
 
         # Create base tile surfaces and initialize the scaled versions.

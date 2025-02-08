@@ -1,6 +1,6 @@
 import pygame
 from enum import Enum, auto
-from WindowManager import WindowManager
+from Core.WindowManager import WindowManager
 from Core.MenuSystem import Menu, MenuFactory, MenuItem, MenuItemType
 from MenuConfigs import MENU_CONFIGS, MenuID
 

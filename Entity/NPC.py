@@ -1,5 +1,5 @@
 """
-Enemy entity implementation with pathfinding and player tracking capabilities.
+NPC entity implementation with pathfinding and player tracking capabilities.
 """
 
 from Entity.Entity import Entity, EntityType
@@ -9,9 +9,9 @@ from Core.Events import EventManager, GameEventType
 import pygame
 import logging
 
-class Enemy(Entity):
+class NPC(Entity):
     """
-    Enemy entity that can track and follow the player.
+    NPC entity that can track and follow the player.
     
     Features:
     - Player detection within range
@@ -19,24 +19,26 @@ class Enemy(Entity):
     - Event-based movement updates
     
     Attributes:
-        detection_range (int): How many tiles away the enemy can detect the player
+        detection_range (int): How many tiles away the NPC can detect the player
         current_path (list): Current pathfinding route to player
     """
 
-    def __init__(self, position: Position):
+    def __init__(self, position: Position, entity_type: EntityType):
         """
-        Initialize enemy at given position.
+        Initialize NPC at given position with specific type.
 
         Args:
-            position (Position): Starting position of the enemy
+            position (Position): Starting position of the NPC
+            entity_type (EntityType): Type of NPC (HUMANOID, BEAST, etc.)
         """
-        super().__init__(EntityType.ENEMY, position, blocks_movement=True)
-        self.detection_range = 8  # How many tiles away the enemy can see the player
+        super().__init__(entity_type, position, blocks_movement=True)
+        self.detection_range = 8  # How many tiles away the NPC can see the player
         self.current_path = []
         self.event_manager = EventManager.get_instance()
         self.logger = logging.getLogger(__name__)
         self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
         self.event_manager.subscribe(GameEventType.TURN_ENDED, self._handle_turn_ended)
+        
 
     def _handle_player_moved(self, event):
         """
@@ -63,7 +65,7 @@ class Enemy(Entity):
                 path = self.get_pathfinder().find_path(self.position, player_pos, self)
                 if path:
                     self.current_path = path
-                    self.logger.debug(f"Enemy found path to player: {path}")
+                    self.logger.debug(f"NPC found path to player: {path}")
         except Exception as e:
             self.logger.error(f"Error handling player movement: {e}")
 
@@ -98,6 +100,6 @@ class Enemy(Entity):
                 dx=dx,
                 dy=dy
             )
-            self.logger.debug(f"Enemy moved to {next_pos}")
+            self.logger.debug(f"NPC moved to {next_pos}")
         except Exception as e:
             self.logger.error(f"Error during turn end movement: {e}")
