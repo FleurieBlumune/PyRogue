@@ -1,6 +1,5 @@
 """Game data loading and management."""
 
-import yaml
 from pathlib import Path
 import logging
 from typing import Dict, Any
@@ -12,19 +11,6 @@ class GameDataLoader:
         self.logger = logging.getLogger(__name__)
         self.data_dir = Path(__file__).parent / "GameData"
         self._faction_data = None
-
-    def load_all(self) -> None:
-        """Load all game data."""
-        self._faction_data = self._load_yaml("factions.yaml")
-
-    def _load_yaml(self, filename: str) -> Dict[str, Any]:
-        """Load and parse a YAML file."""
-        try:
-            with open(self.data_dir / filename, 'r') as f:
-                return yaml.safe_load(f)
-        except Exception as e:
-            self.logger.error(f"Failed to load {filename}: {e}")
-            return {}
 
     def get_faction_data(self) -> Dict[str, Any]:
         """Get faction and stats data."""
