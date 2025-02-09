@@ -1,15 +1,34 @@
-import pygame
-from enum import Enum, auto
-from Core.WindowManager import WindowManager
-from Core.MenuSystem import Menu, MenuFactory, MenuItem, MenuItemType
-from MenuConfigs import MENU_CONFIGS, MenuID
+"""
+Title screen implementation using the menu system.
+"""
 
-class MenuState(Enum):
-    MAIN = auto()
-    OPTIONS = auto()
+import pygame
+from Core.WindowManager import WindowManager
+from Menu import MenuFactory, MenuID, MenuState, MENU_CONFIGS
 
 class TitleScreen:
+    """
+    Title screen implementation that manages menus and window settings.
+    
+    Attributes:
+        window_manager (WindowManager): Manages window settings and display
+        screen (pygame.Surface): The screen surface to render to
+        width (int): Current screen width
+        height (int): Current screen height
+        state (MenuState): Current menu state
+        menu_factory (MenuFactory): Factory for creating menus
+        main_menu (Menu): The main menu
+        options_menu (Menu): The options menu
+    """
+    
     def __init__(self, width: int, height: int):
+        """
+        Initialize the title screen.
+        
+        Args:
+            width: Initial screen width
+            height: Initial screen height
+        """
         self.window_manager = WindowManager()
         self.screen = self.window_manager.set_mode(width, height)
         self.width, self.height = self.window_manager.get_screen_size()
@@ -33,16 +52,19 @@ class TitleScreen:
         self._create_menus()
         
     def _create_menus(self):
+        """Create the main and options menus."""
         self.main_menu = self.menu_factory.create_menu(MENU_CONFIGS[MenuID.MAIN])
         self.options_menu = self.menu_factory.create_menu(MENU_CONFIGS[MenuID.OPTIONS])
         
     def _update_resolution(self):
+        """Update the screen resolution."""
         self.width, self.height = self.window_manager.cycle_resolution()
         self.screen = self.window_manager.screen
         # Recreate menus with new dimensions
         self._create_menus()
         
     def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
         self.window_manager.toggle_fullscreen()
         self.width, self.height = self.window_manager.get_screen_size()
         self.screen = self.window_manager.screen
@@ -50,6 +72,7 @@ class TitleScreen:
         self._create_menus()
 
     def render(self):
+        """Render the current menu."""
         self.screen.fill((0, 0, 0))
         if self.state == MenuState.MAIN:
             self.main_menu.render(self.screen, self.width, self.height)
@@ -58,6 +81,12 @@ class TitleScreen:
         pygame.display.flip()
 
     def handle_input(self) -> tuple[bool, dict]:
+        """
+        Handle input events.
+        
+        Returns:
+            tuple[bool, dict]: (should_exit, settings)
+        """
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True, {}

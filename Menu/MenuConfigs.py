@@ -1,9 +1,8 @@
-from enum import Enum, auto
+"""
+Menu configuration data including font settings and menu layouts.
+"""
 
-class MenuID(Enum):
-    MAIN = auto()
-    OPTIONS = auto()
-    PAUSE = auto()
+from Menu.MenuTypes import MenuID
 
 FONT_CONFIGS = {
     "Title": {"Name": None, "Size": 74},
@@ -69,4 +68,4 @@ MENU_CONFIGS = {
             }
         ]
     }
-}
+} 

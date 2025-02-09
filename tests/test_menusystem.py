@@ -1,8 +1,12 @@
+"""
+Tests for the menu system components.
+"""
+
 import pytest
 import pygame
 import os
-from Core.MenuSystem import MenuItem, Menu, MenuItemType, MenuFactory
-from MenuConfigs import MENU_CONFIGS, MenuID, FONT_CONFIGS
+from Menu import MenuItem, Menu, MenuItemType, MenuFactory
+from Menu import MENU_CONFIGS, MenuID, FONT_CONFIGS
 
 # Initialize pygame properly for testing
 pygame.init()
