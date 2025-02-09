@@ -5,7 +5,7 @@ Processes keyboard and mouse input and converts them into game actions.
 
 import pygame
 from Core.TurnManager import TurnManager
-from DataModel import Position
+from Core.Position import Position
 from Core.Events import EventManager, GameEventType
 
 class InputHandler:
@@ -128,13 +128,16 @@ class InputHandler:
                     self._handle_movement(key)
                     self.pressed_keys[key] = current_time - (elapsed % self.key_repeat_rate)
 
-    def _handle_path_movement(self):
-        """Handle movement along a pre-calculated path"""
+    def _handle_path_movement(self) -> None:
+        """Handle movement along a pre-calculated path."""
+        if not self.zone.player:
+            return
+        
         if self.zone.player.current_path:
             dx, dy = self.zone.player.get_next_move()
-            if dx != 0 or dy != 0:
-                # Move player, which will trigger turn processing in Zone.move_entity
-                moved = self.zone.move_entity(self.zone.player, dx, dy)
-                if moved and self.manual_camera_control:
-                    self.manual_camera_control = False
-                    self.renderer.center_on_entity(self.zone.player)
+            
+            # Move player, which will trigger turn processing in Zone.move_entity
+            moved = self.zone.move_entity(self.zone.player, dx, dy)
+            
+            if moved:
+                self.renderer.center_on_entity(self.zone.player)

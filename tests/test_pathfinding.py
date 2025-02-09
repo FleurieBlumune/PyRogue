@@ -1,6 +1,10 @@
+"""Unit tests for pathfinding functionality."""
+
 import pytest
 from Core.Pathfinding import PathFinder
-from DataModel import Position, Grid, TileType
+from Core.Position import Position
+from Zone.Grid import Grid
+from Zone.TileType import TileType
 from Entity.Entity import Entity, EntityType
 
 class MiniZone:

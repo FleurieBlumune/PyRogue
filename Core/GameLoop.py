@@ -1,10 +1,16 @@
 """
 Main game loop handling initialization, game state management, and core game flow.
+
+Responsible for:
+- Game initialization and settings
+- Title screen management
+- Game state coordination
+- Update and render loop management
 """
 
 import pygame
 import Core.Events as Events
-from DungeonGenerator import DungeonGenerator
+from Zone import DungeonZone
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
@@ -29,6 +35,9 @@ class GameLoop:
         running (bool): Game running state
         event_manager (EventManager): Central event system
         settings (dict): Game settings from title screen
+        zone (Zone): Current game zone
+        renderer (Renderer): Game rendering system
+        input_handler (InputHandler): Input processing system
     """
 
     def __init__(self, width=800, height=600):
@@ -71,7 +80,7 @@ class GameLoop:
         
         return settings
 
-    def _initialize_game(self, settings: dict):
+    def _initialize_game(self, settings: dict) -> None:
         """
         Initialize game components based on settings.
 
@@ -82,48 +91,61 @@ class GameLoop:
         if settings.get('resolution'):
             self.width, self.height = settings['resolution']
         
+        # Generate initial zone
         self.zone = self._generate_dungeon()
         
+        # Initialize renderer with settings
         fullscreen = settings.get('fullscreen', False)
         self.renderer = Renderer(self.width, self.height, fullscreen)
         
+        # Set up input handling
         self.input_handler = InputHandler(self.zone, self.renderer, self.event_manager)
         
-        # Connect renderer to input handler for camera control.
+        # Connect systems
         self.renderer.set_input_handler(self.input_handler)
         self.zone.set_event_manager(self.event_manager)
         
-        # Subscribe to quit event.
+        # Subscribe to quit event
         self.event_manager.subscribe(Events.GameEventType.GAME_QUIT, self._handle_quit)
 
     def _handle_quit(self) -> None:
-        """
-        Handle the quit event to stop the game loop.
-        """
+        """Handle the quit event to stop the game loop."""
         self.running = False
 
     def _generate_dungeon(self):
         """
-        Generate a new dungeon layout.
+        Generate a new dungeon zone.
 
         Returns:
-            Dungeon: Generated dungeon instance
+            DungeonZone: Generated dungeon zone
         """
-        generator = DungeonGenerator(min_rooms=2, max_rooms=2)
-        return generator.generate()
+        return DungeonZone(min_rooms=2, max_rooms=2)
 
-    def run(self):
+    def run(self) -> None:
         """
         Main game loop that handles input, updates, and rendering.
+        
+        Coordinates the game systems in the following order:
+        1. Process input
+        2. Update game state
+        3. Update camera
+        4. Render frame
         """
         while self.running:
             current_time = pygame.time.get_ticks()
             
+            # Process input (may trigger quit)
             if self.input_handler.handle_input():
                 self.running = False
+                continue
             
+            # Update game state
             self.zone.update(current_time)
-            self.renderer.center_on_entity(self.zone.player)
+            
+            # Update camera and render
+            if self.zone.player:  # Only center if we have a player
+                self.renderer.center_on_entity(self.zone.player)
             self.renderer.render(self.zone)
         
+        # Clean up
         self.renderer.cleanup()

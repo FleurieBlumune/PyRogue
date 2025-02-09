@@ -1,8 +1,10 @@
+"""Pathfinding system for the game."""
+
 import heapq
 import math
 import logging
 from typing import List, Dict, Tuple, Callable
-from DataModel import Position
+from Core.Position import Position
 
 def manhattan_distance(a: Position, b: Position) -> int:
     """

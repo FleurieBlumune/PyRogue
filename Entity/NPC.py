@@ -2,12 +2,13 @@
 NPC entity implementation with pathfinding and player tracking capabilities.
 """
 
+import random
+import logging
 from Entity.Entity import Entity, EntityType
-from DataModel import Position
+from Core.Position import Position
 from Entity.Player import Player
 from Core.Events import EventManager, GameEventType
 import pygame
-import logging
 
 class NPC(Entity):
     """

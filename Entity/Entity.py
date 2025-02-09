@@ -1,9 +1,12 @@
-from DataModel import Position, Room
+"""Entity base class."""
+
+from Core.Position import Position
 from Core.Pathfinding import PathFinder
 from Entity.StatsProvider import StatsProvider
 from Entity.EntityType import EntityType
 from Data.GameData import GameData
 from Core.Events import EventManager, GameEventType
+from Zone.Room import Room
 import logging
 
 class Entity:

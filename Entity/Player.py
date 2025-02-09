@@ -1,7 +1,9 @@
+"""Player entity class."""
+
 import pygame
 import logging
 from Entity.Entity import Entity, EntityType
-from DataModel import Position
+from Core.Position import Position
 from Core.Events import EventManager, GameEventType
 
 class Player(Entity):
