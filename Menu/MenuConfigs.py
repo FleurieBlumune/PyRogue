@@ -6,7 +6,8 @@ from Menu.MenuTypes import MenuID
 
 FONT_CONFIGS = {
     "Title": {"Name": None, "Size": 74},
-    "MenuItem": {"Name": None, "Size": 36}
+    "MenuItem": {"Name": None, "Size": 36},
+    "HUD": {"Name": None, "Size": 24}  # Smaller font for HUD
 }
 
 MENU_CONFIGS = {
@@ -65,6 +66,17 @@ MENU_CONFIGS = {
                 "Text": "Quit to Main Menu",
                 "Type": "ACTION",
                 "Action": "QuitToMain"
+            }
+        ]
+    },
+    MenuID.HUD: {
+        "Title": "",  # No title for HUD
+        "Position": "top-left",  # Special position indicator
+        "Items": [
+            {
+                "Text": "HP",
+                "Type": "STAT",
+                "GetValue": "GetPlayerHP"
             }
         ]
     }

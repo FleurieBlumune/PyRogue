@@ -177,14 +177,23 @@ class Renderer:
 
     def render(self, zone: Zone) -> None:
         """
-        Render the current zone, drawing both tiles and entities.
+        Render the current zone and update the display.
+        
+        Args:
+            zone (Zone): The zone to render
+        """
+        self.render_without_flip(zone)
+        pygame.display.flip()
+
+    def render_without_flip(self, zone: Zone) -> None:
+        """
+        Render the current zone without updating the display.
         
         Args:
             zone (Zone): The zone to render
         """
         # Get current window size in case of resize
         self.width, self.height = self.screen.get_size()
-        self.screen.fill((0, 0, 0))  # Clear screen with black
 
         # Calculate visible grid range
         start_x = max(0, self.camera.x // self.tile_size)
@@ -214,8 +223,6 @@ class Renderer:
                     (screen_x + self.tile_size // 2, screen_y + self.tile_size // 2),
                     entity_radius
                 )
-
-        pygame.display.flip()
 
     def center_on_entity(self, entity) -> None:
         """

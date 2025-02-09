@@ -17,6 +17,7 @@ class MenuFactory:
         action_handlers (dict[str, Callable]): Map of action names to handler functions
         title_font (pygame.font.Font): Font for menu titles
         item_font (pygame.font.Font): Font for menu items
+        hud_font (pygame.font.Font): Font for HUD items
     """
     
     def __init__(self, action_handlers: Dict[str, Callable]):
@@ -31,6 +32,8 @@ class MenuFactory:
                                          FONT_CONFIGS["Title"]["Size"])
         self.item_font = pygame.font.Font(FONT_CONFIGS["MenuItem"]["Name"], 
                                         FONT_CONFIGS["MenuItem"]["Size"])
+        self.hud_font = pygame.font.Font(FONT_CONFIGS["HUD"]["Name"],
+                                       FONT_CONFIGS["HUD"]["Size"])
         
     def create_menu(self, config: dict) -> Menu:
         """
@@ -42,7 +45,13 @@ class MenuFactory:
         Returns:
             Menu: The created menu
         """
-        menu = Menu(config["Title"], self.title_font, self.item_font)
+        # Use HUD font for HUD menus, otherwise use standard fonts
+        font_small = self.hud_font if config.get("Position") == "top-left" else self.item_font
+        
+        menu = Menu(config["Title"], 
+                   self.title_font, 
+                   font_small,
+                   position=config.get("Position", "center"))
         
         for item_config in config["Items"]:
             menu.add_item(self._create_menu_item(item_config))
@@ -61,17 +70,21 @@ class MenuFactory:
         """
         item_type = MenuItemType[config["Type"]]
         
-        # Get callback handler
-        callback = self.action_handlers.get(config["Action"])
-        
-        # Handle special types
-        if item_type == MenuItemType.SELECTOR:
+        # Handle different item types
+        if item_type == MenuItemType.STAT:
+            value_getter = self.action_handlers[config["GetValue"]]
+            return MenuItem(
+                config["Text"],
+                item_type,
+                value_getter=value_getter
+            )
+        elif item_type == MenuItemType.SELECTOR:
             options_getter = self.action_handlers[config["GetOptions"]]
             current_getter = self.action_handlers[config["GetCurrent"]]
             return MenuItem(
                 config["Text"],
                 item_type,
-                callback,
+                callback=self.action_handlers.get(config["Action"]),
                 options=options_getter(),
                 value=current_getter()
             )
@@ -80,8 +93,12 @@ class MenuFactory:
             return MenuItem(
                 config["Text"],
                 item_type,
-                callback,
+                callback=self.action_handlers.get(config["Action"]),
                 value=current_getter()
             )
         
-        return MenuItem(config["Text"], item_type, callback) 
+        return MenuItem(
+            config["Text"],
+            item_type,
+            callback=self.action_handlers.get(config["Action"])
+        ) 

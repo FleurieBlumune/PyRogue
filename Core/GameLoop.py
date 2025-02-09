@@ -14,6 +14,7 @@ from Zone import DungeonZone
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
+from Menu import MenuFactory, MenuID, MENU_CONFIGS
 from pathlib import Path
 import logging
 import os
@@ -38,6 +39,7 @@ class GameLoop:
         zone (Zone): Current game zone
         renderer (Renderer): Game rendering system
         input_handler (InputHandler): Input processing system
+        hud_menu (Menu): HUD menu for displaying stats
     """
 
     def __init__(self, width=800, height=600):
@@ -105,8 +107,20 @@ class GameLoop:
         self.renderer.set_input_handler(self.input_handler)
         self.zone.set_event_manager(self.event_manager)
         
+        # Create HUD menu
+        self._create_hud()
+        
         # Subscribe to quit event
         self.event_manager.subscribe(Events.GameEventType.GAME_QUIT, self._handle_quit)
+
+    def _create_hud(self) -> None:
+        """Create the HUD menu with player stat handlers."""
+        hud_handlers = {
+            "GetPlayerHP": lambda: (self.zone.player.stats.current_hp, 
+                                  self.zone.player.stats.max_hp)
+        }
+        menu_factory = MenuFactory(hud_handlers)
+        self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
 
     def _handle_quit(self) -> None:
         """Handle the quit event to stop the game loop."""
@@ -129,7 +143,8 @@ class GameLoop:
         1. Process input
         2. Update game state
         3. Update camera
-        4. Render frame
+        4. Render frame and HUD
+        5. Update display
         """
         while self.running:
             current_time = pygame.time.get_ticks()
@@ -142,10 +157,22 @@ class GameLoop:
             # Update game state
             self.zone.update(current_time)
             
-            # Update camera and render
+            # Update camera and render everything
             if self.zone.player:  # Only center if we have a player
                 self.renderer.center_on_entity(self.zone.player)
-            self.renderer.render(self.zone)
+            
+            # Clear screen
+            self.renderer.screen.fill((0, 0, 0))
+            
+            # Render game world
+            self.renderer.render_without_flip(self.zone)
+            
+            # Render HUD on top
+            if hasattr(self, 'hud_menu'):
+                self.hud_menu.render(self.renderer.screen, self.width, self.height)
+            
+            # Update display once per frame
+            pygame.display.flip()
         
         # Clean up
         self.renderer.cleanup()

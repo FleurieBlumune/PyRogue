@@ -9,12 +9,16 @@ class Stats:
         quickness (int): Speed/initiative stat, affects turn order and action points
         max_action_points (int): Maximum action points that can be accumulated
         action_points (int): Current action points available
+        max_hp (int): Maximum hit points
+        current_hp (int): Current hit points
     """
     
-    def __init__(self, quickness: int = 100, max_action_points: int = 1000):
+    def __init__(self, quickness: int = 100, max_action_points: int = 1000, max_hp: int = 100):
         self.quickness = quickness
         self.max_action_points = max_action_points
         self.action_points = max_action_points  # Start with max points
+        self.max_hp = max_hp
+        self.current_hp = max_hp  # Start with full health
         self.logger = logging.getLogger(__name__)
         
         # Action costs
@@ -57,3 +61,18 @@ class Stats:
             return True
         self.logger.debug(f"Failed to spend AP: need {actual_cost}, have {self.action_points}")
         return False
+        
+    def modify_hp(self, amount: int) -> int:
+        """
+        Modify current HP by the given amount (positive for healing, negative for damage).
+        Returns the actual amount of HP changed.
+        """
+        old_hp = self.current_hp
+        self.current_hp = max(0, min(self.current_hp + amount, self.max_hp))
+        change = self.current_hp - old_hp
+        self.logger.debug(f"HP modified: {old_hp} -> {self.current_hp} (change: {change})")
+        return change
+        
+    def is_alive(self) -> bool:
+        """Check if the entity is still alive."""
+        return self.current_hp > 0

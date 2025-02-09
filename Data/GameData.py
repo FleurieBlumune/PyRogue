@@ -8,6 +8,7 @@ import logging
 class EntityStats(NamedTuple):
     quickness: int
     max_action_points: int
+    max_hp: int
 
 class GameData:
     _instance = None
@@ -44,7 +45,8 @@ class GameData:
             for row in reader:
                 self._stats[row['entity_type']] = EntityStats(
                     quickness=int(row['quickness']),
-                    max_action_points=int(row['max_action_points'])
+                    max_action_points=int(row['max_action_points']),
+                    max_hp=int(row['max_hp'])
                 )
 
         # Load faction relations
@@ -61,7 +63,7 @@ class GameData:
 
     def get_stats(self, entity_type: str) -> EntityStats:
         """Get stats for an entity type."""
-        return self._stats.get(entity_type, EntityStats(100, 1000))  # Default stats
+        return self._stats.get(entity_type, EntityStats(100, 1000, 100))  # Default stats
 
     def get_faction_disposition(self, faction: str, other: str) -> int:
         """Get disposition between factions. Checks both directions and returns most hostile value."""

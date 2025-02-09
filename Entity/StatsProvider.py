@@ -29,5 +29,6 @@ class StatsProvider:
         stats_data = GameData.get_instance().get_stats(type_name)
         return Stats(
             quickness=stats_data.quickness,
-            max_action_points=stats_data.max_action_points
+            max_action_points=stats_data.max_action_points,
+            max_hp=stats_data.max_hp
         )

@@ -11,11 +11,12 @@ class MenuItem:
     
     Attributes:
         text (str): Display text for the menu item
-        type (MenuItemType): Type of menu item (TEXT, TOGGLE, SELECTOR, ACTION)
+        type (MenuItemType): Type of menu item (TEXT, TOGGLE, SELECTOR, ACTION, STAT)
         callback (Optional[Callable]): Function to call when item is activated
         options (list[Any]): Available options for SELECTOR type items
         value (Any): Current value for TOGGLE and SELECTOR types
         selected (bool): Whether the item is currently selected
+        value_getter (Optional[Callable]): Function to get current value for STAT type
     """
     
     def __init__(self, 
@@ -23,7 +24,8 @@ class MenuItem:
                  item_type: MenuItemType,
                  callback: Optional[Callable] = None,
                  options: list[Any] = None,
-                 value: Any = None):
+                 value: Any = None,
+                 value_getter: Optional[Callable] = None):
         """
         Initialize a new menu item.
         
@@ -33,12 +35,14 @@ class MenuItem:
             callback: Function to call when item is activated
             options: Available options for SELECTOR type items
             value: Current value for TOGGLE and SELECTOR types
+            value_getter: Function to get current value for STAT type
         """
         self.text = text
         self.type = item_type
         self.callback = callback
         self.options = options
         self.value = value
+        self.value_getter = value_getter
         self.selected = False
         
     def activate(self) -> Any:
@@ -69,4 +73,10 @@ class MenuItem:
             return f"{self.text}: {'On' if self.value else 'Off'}"
         elif self.type == MenuItemType.SELECTOR:
             return f"{self.text}: {self.value}"
+        elif self.type == MenuItemType.STAT and self.value_getter:
+            current_value = self.value_getter()
+            if isinstance(current_value, tuple):
+                current, maximum = current_value
+                return f"{self.text}: {current}/{maximum}"
+            return f"{self.text}: {current_value}"
         return self.text 
