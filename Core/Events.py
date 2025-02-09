@@ -16,6 +16,7 @@ class GameEventType(IntEnum):
     GAME_QUIT = pygame.USEREVENT + 5
     TURN_STARTED = pygame.USEREVENT + 6
     TURN_ENDED = pygame.USEREVENT + 7
+    ENTITY_TURN = pygame.USEREVENT + 8
 
 class EventManager:
     """Singleton event manager that handles both pygame and custom game events."""
@@ -80,7 +81,19 @@ class EventManager:
     def emit(self, event_type: int, **kwargs):
         """Emit a new event"""
         self.logger.debug(f"Emitting event {event_type} with {kwargs}")
+        event = pygame.event.Event(event_type, kwargs)
+        
+        # Process ENTITY_TURN events immediately to ensure proper turn order
+        if event_type == GameEventType.ENTITY_TURN and event_type in self.subscriptions:
+            self.logger.debug("Processing ENTITY_TURN event immediately")
+            for handler in self.subscriptions[event_type]:
+                try:
+                    handler(event)
+                except Exception as e:
+                    self.logger.error(f"Error in immediate handler {handler.__name__}: {e}")
+            return
+            
         try:
-            pygame.event.post(pygame.event.Event(event_type, kwargs))
+            pygame.event.post(event)
         except Exception as e:
             self.logger.error(f"Error posting event {event_type}: {e}")

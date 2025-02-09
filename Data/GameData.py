@@ -11,26 +11,27 @@ class EntityStats(NamedTuple):
 
 class GameData:
     _instance = None
+    _initialized = False
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(GameData, cls).__new__(cls)
-            cls._instance._initialized = False
         return cls._instance
 
     def __init__(self):
-        if self._initialized:
-            return
-        self.logger = logging.getLogger(__name__)
-        self._stats: Dict[str, EntityStats] = {}
-        self._relations: Dict[str, Dict[str, int]] = {}
-        self._initialized = True
-        self._load_data()
+        if not GameData._initialized:
+            self.logger = logging.getLogger(__name__)
+            self._stats: Dict[str, EntityStats] = {}
+            self._relations: Dict[str, Dict[str, int]] = {}
+            self.logger.debug("Initializing GameData singleton")
+            self._load_data()
+            GameData._initialized = True
 
     @staticmethod
     def get_instance():
         if GameData._instance is None:
-            GameData()
+            GameData._instance = GameData()
+            GameData._instance.logger.debug("Created new GameData instance")
         return GameData._instance
 
     def _load_data(self):
@@ -51,14 +52,22 @@ class GameData:
             reader = csv.DictReader(f)
             for row in reader:
                 faction = row['faction']
+                other = row['other_faction']
+                disposition = int(row['disposition'])
                 if faction not in self._relations:
                     self._relations[faction] = {}
-                self._relations[faction][row['other_faction']] = int(row['disposition'])
+                self._relations[faction][other] = disposition
+                self.logger.debug(f"Loaded faction relation: {faction} -> {other} = {disposition}")
 
     def get_stats(self, entity_type: str) -> EntityStats:
         """Get stats for an entity type."""
         return self._stats.get(entity_type, EntityStats(100, 1000))  # Default stats
 
     def get_faction_disposition(self, faction: str, other: str) -> int:
-        """Get disposition between factions."""
-        return self._relations.get(faction, {}).get(other, 0)
+        """Get disposition between factions. Checks both directions and returns most hostile value."""
+        self.logger.debug(f"Current faction relations: {self._relations}")
+        direct = self._relations.get(faction, {}).get(other, 0)
+        reverse = self._relations.get(other, {}).get(faction, 0)
+        self.logger.debug(f"Checking disposition {faction} -> {other}: direct={direct}, reverse={reverse}")
+        # Return the more hostile (lower) disposition
+        return min(direct, reverse)

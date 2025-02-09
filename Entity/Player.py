@@ -1,6 +1,8 @@
 import pygame
+import logging
 from Entity.Entity import Entity, EntityType
 from DataModel import Position
+from Core.Events import EventManager, GameEventType
 
 class Player(Entity):
     def __init__(self, position: Position):
@@ -20,6 +22,9 @@ class Player(Entity):
             pygame.K_KP3: (1, 1)      # Numpad 3
         }
         self.current_path = []
+        self.event_manager = EventManager.get_instance()
+        self.logger = logging.getLogger(__name__)
+        self.event_manager.subscribe(GameEventType.ENTITY_TURN, self._do_turn)
 
     def handle_click(self, tile_x: int, tile_y: int) -> bool:
         """Handle a click at the given tile coordinates"""           
@@ -59,3 +64,19 @@ class Player(Entity):
         self.current_path.pop(0)
         
         return (dx, dy)
+
+    def _do_turn(self, event):
+        """Handle Player's turn including movement and action point processing"""
+        try:
+            if event.entity is not self:
+                return
+
+            if not self.can_act():
+                self.logger.debug(f"{self.type.name} can't act: AP={self.stats.action_points}, last_turn={self.last_turn_acted}")
+                return
+
+            # Player-specific turn logic can be added here
+            self.logger.debug(f"{self.type.name} is taking its turn")
+
+        except Exception as e:
+            self.logger.error(f"Error during Player turn: {e}", exc_info=True)

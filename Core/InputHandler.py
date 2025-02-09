@@ -105,17 +105,13 @@ class InputHandler:
         return quit_game
 
     def _handle_movement(self, key):
-            dx, dy = self.zone.player.get_movement_from_key(key)
-            if dx != 0 or dy != 0:
-                # Move player first so that PLAYER_MOVED is emitted afterward.
-                moved = self.zone.move_entity(self.zone.player, dx, dy)
-                if moved:
-                    # Now start the turn so that pending events (including PLAYER_MOVED) are processed.
-                    self.turn_manager.start_turn()
-                    # Reset manual camera control when player moves
-                    if self.manual_camera_control:
-                        self.manual_camera_control = False
-                        self.renderer.center_on_entity(self.zone.player)
+        dx, dy = self.zone.player.get_movement_from_key(key)
+        if dx != 0 or dy != 0:
+            # Move player, which will trigger turn processing in Zone.move_entity
+            moved = self.zone.move_entity(self.zone.player, dx, dy)
+            if moved and self.manual_camera_control:
+                self.manual_camera_control = False
+                self.renderer.center_on_entity(self.zone.player)
 
     def _handle_mouse_click(self, pos):
         """Convert screen coordinates to tile coordinates and send to player"""
@@ -137,5 +133,8 @@ class InputHandler:
         if self.zone.player.current_path:
             dx, dy = self.zone.player.get_next_move()
             if dx != 0 or dy != 0:
-                self.zone.move_entity(self.zone.player, dx, dy)
-                self.turn_manager.start_turn()
+                # Move player, which will trigger turn processing in Zone.move_entity
+                moved = self.zone.move_entity(self.zone.player, dx, dy)
+                if moved and self.manual_camera_control:
+                    self.manual_camera_control = False
+                    self.renderer.center_on_entity(self.zone.player)

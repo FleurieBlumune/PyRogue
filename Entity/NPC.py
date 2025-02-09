@@ -36,70 +36,99 @@ class NPC(Entity):
         self.current_path = []
         self.event_manager = EventManager.get_instance()
         self.logger = logging.getLogger(__name__)
-        self.event_manager.subscribe(GameEventType.PLAYER_MOVED, self._handle_player_moved)
-        self.event_manager.subscribe(GameEventType.TURN_ENDED, self._handle_turn_ended)
+        self.event_manager.subscribe(GameEventType.ENTITY_TURN, self._do_turn)
+        self.logger.debug(f"Created {entity_type.name} with {self.stats.action_points} AP")
         
 
-    def _handle_player_moved(self, event):
-        """
-        Handle player movement events by updating pathfinding.
-
-        Args:
-            args (dict): Event arguments containing player entity and position
-        """
+    def _do_turn(self, event):
+        """Handle NPC's turn including hostile entity detection and movement"""
         try:
-            args = event.dict if hasattr(event, 'dict') else {}
-            # Check if the event dictionary contains an "args" key
-            if 'args' in args:
-                args = args['args']
-            player_pos = args.get('to_pos')
-            if not player_pos:
-                self.logger.warning("Player moved event missing position")
+            # Check if this is our turn by looking directly at event attributes
+            if event.entity is not self:
                 return
 
-            dx = abs(self.position.x - player_pos.x)
-            dy = abs(self.position.y - player_pos.y)
+            # Don't try to act if we can't
+            if not self.can_act():
+                self.logger.debug(f"{self.type.name} can't act: AP={self.stats.action_points}, last_turn={self.last_turn_acted}")
+                return
+
+            nearby_entities = event.visible_entities
+            self.logger.debug(f"{self.type.name} sees {len(nearby_entities)} entities: {[e.type.name for e in nearby_entities]}")
             
-            if dx <= self.detection_range and dy <= self.detection_range:
-                # Use the inherited pathfinder.
-                path = self.get_pathfinder().find_path(self.position, player_pos, self)
-                if path:
-                    self.current_path = path
-                    self.logger.debug(f"NPC found path to player: {path}")
+            # Find closest hostile entity
+            closest_target = None
+            closest_dist = float('inf')
+            
+            for entity in nearby_entities:
+                if self.is_hostile_to(entity):
+                    dx = abs(self.position.x - entity.position.x)
+                    dy = abs(self.position.y - entity.position.y)
+                    dist = dx + dy
+                    
+                    if dist <= self.detection_range and dist < closest_dist:
+                        closest_dist = dist
+                        closest_target = entity
+                        self.logger.debug(f"{self.type.name} considering target {entity.type.name} at distance {dist}")
+
+            if closest_target:
+                self.logger.debug(f"{self.type.name} found target {closest_target.type.name} at distance {closest_dist}")
+                # If we're next to the target, don't calculate a path
+                if closest_dist <= 1:
+                    # TODO: Add attack logic here later
+                    return
+                
+                # If we have a path, validate it still leads to target 
+                if self.current_path:
+                    next_pos = self.current_path[0]
+                    dx_to_target = abs(next_pos.x - closest_target.position.x)
+                    dy_to_target = abs(next_pos.y - closest_target.position.y)
+                    
+                    # Path is invalid if it doesn't get us closer to target
+                    if dx_to_target + dy_to_target >= closest_dist:
+                        self.logger.debug(f"{self.type.name} current path no longer valid - recalculating")
+                        self.current_path = []
+                    else:
+                        dx = next_pos.x - self.position.x
+                        dy = next_pos.y - self.position.y
+                        self.logger.debug(f"{self.type.name} attempting move dx={dx}, dy={dy} along existing path")
+                        if hasattr(self, 'zone'):
+                            if self.zone.move_entity(self, dx, dy):
+                                self.current_path.pop(0)
+                                self.logger.debug(f"{self.type.name} moved using existing path, {len(self.current_path)} steps remaining")
+                                return
+                            else:
+                                self.logger.debug(f"{self.type.name} failed to move using existing path")
+                                self.current_path = []  # Path is blocked, clear it
+
+                # No valid path exists, calculate new one
+                if not self.current_path:
+                    path = self.get_pathfinder().find_path(
+                        self.position, 
+                        closest_target.position,
+                        self
+                    )
+                    if path:
+                        self.logger.debug(f"{self.type.name} found new path of length {len(path)} to {closest_target.type.name}")
+                        next_pos = path[0]
+                        dx = next_pos.x - self.position.x
+                        dy = next_pos.y - self.position.y
+                        self.logger.debug(f"{self.type.name} attempting move dx={dx}, dy={dy} along new path")
+                        
+                        if hasattr(self, 'zone'):
+                            if self.zone.move_entity(self, dx, dy):
+                                self.current_path = path[1:] if len(path) > 1 else []
+                                self.logger.debug(f"{self.type.name} moved using new path, saved {len(self.current_path)} remaining steps")
+                            else:
+                                self.logger.debug(f"{self.type.name} failed to move using new path")
+                    else:
+                        self.logger.debug(f"{self.type.name} failed to find path to target")
+            else:
+                self.logger.debug(f"{self.type.name} found no valid targets")
+                    
         except Exception as e:
-            self.logger.error(f"Error handling player movement: {e}")
+            self.logger.error(f"Error during NPC turn: {e}", exc_info=True)
 
-    def _handle_turn_ended(self, event):
-        """Move along path when turn ends"""
-        try:
-            if not self.current_path:
-                return
 
-            next_pos = self.current_path[0]
-            if not self.pathfinder.is_passable(next_pos.x, next_pos.y, self):
-                self.logger.debug(f"Next position {next_pos} is not passable")
-                self.current_path = []
-                return
-
-            dx = next_pos.x - self.position.x
-            dy = next_pos.y - self.position.y
-            
-            # Remove the position we're moving to
-            self.current_path.pop(0)
-            
-            # Update position before emitting event
-            old_pos = Position(self.position.x, self.position.y)
-            self.position = next_pos
-            
-            # Emit movement event
-            self.event_manager.emit(
-                GameEventType.ENTITY_MOVED,
-                entity=self,
-                from_pos=old_pos,
-                to_pos=next_pos,
-                dx=dx,
-                dy=dy
-            )
-            self.logger.debug(f"NPC moved to {next_pos}")
-        except Exception as e:
-            self.logger.error(f"Error during turn end movement: {e}")
+    def set_zone(self, zone):
+        """Set the zone reference for movement"""
+        self.zone = zone

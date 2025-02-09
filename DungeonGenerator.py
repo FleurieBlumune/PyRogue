@@ -28,8 +28,8 @@ class DungeonGenerator:
 
         # Place player in first room
         player = Player(rooms[0].center())
+        zone.add_entity(player)  # Use add_entity instead of direct assignment
         zone.player = player
-        zone.entities.append(player)
         
         # Place NPCs using the new _place_entities method
         self._place_entities(zone, rooms)
@@ -69,17 +69,15 @@ class DungeonGenerator:
     def _place_entities(self, zone, rooms):
         """Place NPCs in rooms (excluding the first room)"""
         for room in rooms[1:]:  # Skip first room (player spawn)
-            if random.random() < 0.7:  # 70% chance of entity
-                pos = Position(
-                    random.randint(room.position.x + 1, room.position.x + room.width - 2),
-                    random.randint(room.position.y + 1, room.position.y + room.height - 2)
-                )
-                # Random selection of NPC type
-                npc_type = random.choice([
-                    EntityType.HUMANOID,
-                    EntityType.BEAST,
-                    EntityType.UNDEAD,
-                    EntityType.MERCHANT
-                ])
-                new_npc = NPC(pos, npc_type)
-                zone.add_entity(new_npc)
+            # if random.random() < 0.7:  # 70% chance of entity
+            pos = Position(
+                random.randint(room.position.x + 1, room.position.x + room.width - 2),
+                random.randint(room.position.y + 1, room.position.y + room.height - 2)
+            )
+            # Random selection of NPC type
+            npc_type = random.choice([
+                EntityType.BEAST,
+                EntityType.UNDEAD
+            ])
+            new_npc = NPC(pos, npc_type)
+            zone.add_entity(new_npc)
