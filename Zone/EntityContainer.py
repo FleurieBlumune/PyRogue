@@ -120,8 +120,8 @@ class EntityContainer:
         """
         Attempt to move an entity by the given delta.
         
-        Handles movement validation, collision detection, event emission,
-        and turn management integration.
+        Handles movement validation, collision detection, combat interactions,
+        event emission, and turn management integration.
         
         Args:
             entity (Entity): The entity to move
@@ -129,7 +129,7 @@ class EntityContainer:
             dy (int): Y-axis movement delta
             
         Returns:
-            bool: True if movement was successful
+            bool: True if movement was successful or combat occurred
         """
         if not self.event_manager:
             self.logger.error("Attempted to move entity with no event manager set")
@@ -138,6 +138,15 @@ class EntityContainer:
         new_x = entity.position.x + dx
         new_y = entity.position.y + dy
         
+        # Check for entities at the target position
+        target_entity = self.get_entity_at(new_x, new_y)
+        
+        # If there's an entity and it's hostile, attempt combat
+        if target_entity and entity.is_hostile_to(target_entity):
+            self.logger.debug(f"{entity.type.name} attempting to attack {target_entity.type.name}")
+            return entity.attack(target_entity)
+        
+        # Otherwise proceed with normal movement
         if self.is_passable(new_x, new_y, ignoring=entity) and entity.try_spend_movement():
             old_pos = Position(entity.position.x, entity.position.y)
             entity.position.x = new_x
@@ -157,4 +166,20 @@ class EntityContainer:
                 self.turn_manager.start_turn(self.entity_manager.get_entities())
                 
             return True
-        return False 
+        return False
+        
+    def get_entity_at(self, x: int, y: int) -> Optional[Entity]:
+        """
+        Get the entity at the specified position, if any.
+        
+        Args:
+            x (int): X coordinate to check
+            y (int): Y coordinate to check
+            
+        Returns:
+            Optional[Entity]: The entity at the position, or None if empty
+        """
+        for entity in self.entities:
+            if entity.position.x == x and entity.position.y == y:
+                return entity
+        return None

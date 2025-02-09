@@ -1,5 +1,6 @@
 """Base statistics system for entities."""
 import logging
+import random
 
 class Stats:
     """
@@ -11,14 +12,16 @@ class Stats:
         action_points (int): Current action points available
         max_hp (int): Maximum hit points
         current_hp (int): Current hit points
+        strength (int): Physical power, affects melee damage
     """
     
-    def __init__(self, quickness: int = 100, max_action_points: int = 1000, max_hp: int = 100):
+    def __init__(self, quickness: int = 100, max_action_points: int = 1000, max_hp: int = 100, strength: int = 10):
         self.quickness = quickness
         self.max_action_points = max_action_points
         self.action_points = max_action_points  # Start with max points
         self.max_hp = max_hp
         self.current_hp = max_hp  # Start with full health
+        self.strength = strength
         self.logger = logging.getLogger(__name__)
         
         # Action costs
@@ -76,3 +79,24 @@ class Stats:
     def is_alive(self) -> bool:
         """Check if the entity is still alive."""
         return self.current_hp > 0
+    
+    def calculate_attack_damage(self) -> int:
+        """
+        Calculate damage for a basic attack.
+        Includes some randomization based on strength.
+        """
+        base_damage = self.strength
+        variance = random.randint(-2, 2)  # Add some randomness
+        damage = max(1, base_damage + variance)  # Ensure at least 1 damage
+        self.logger.debug(f"Attack damage calculated: {damage} (base: {base_damage}, variance: {variance})")
+        return damage
+    
+    def take_damage(self, damage: int) -> int:
+        """
+        Take damage and return the actual amount of damage dealt.
+        """
+        return -self.modify_hp(-damage)  # Negative because damage reduces HP
+    
+    def can_attack(self) -> bool:
+        """Check if entity has enough action points to attack."""
+        return self.action_points >= self.get_scaled_cost(self.attack_cost)

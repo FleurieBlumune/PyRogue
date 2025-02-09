@@ -65,3 +65,57 @@ class Entity:
         old_ap = self.stats.action_points
         self.stats.accumulate_action_points()
         self.logger.debug(f"{self.type.name} AP recovered: {old_ap} -> {self.stats.action_points}")
+
+    def attack(self, target: 'Entity') -> bool:
+        """
+        Attempt to attack another entity.
+        Returns True if the attack was successful, False otherwise.
+        """
+        if not self.stats.can_attack():
+            self.logger.debug(f"{self.type.name} cannot attack: insufficient AP")
+            return False
+            
+        if not self.is_adjacent_to(target):
+            self.logger.debug(f"{self.type.name} cannot attack: target not adjacent")
+            return False
+            
+        # Calculate and deal damage
+        damage = self.stats.calculate_attack_damage()
+        actual_damage = target.take_damage(damage)
+        
+        # Spend action points for the attack
+        self.stats.spend_action_points(self.stats.attack_cost)
+        
+        # Update last turn acted
+        from Core.TurnManager import TurnManager
+        self.last_turn_acted = TurnManager.get_instance().current_turn
+        
+        self.logger.info(f"{self.type.name} attacked {target.type.name} for {actual_damage} damage")
+        
+        # Emit combat event
+        self.event_manager.emit(GameEventType.COMBAT_ACTION, attacker=self, defender=target, damage=actual_damage)
+        
+        return True
+
+    def take_damage(self, damage: int) -> int:
+        """
+        Take damage and return the actual amount of damage dealt.
+        """
+        actual_damage = self.stats.take_damage(damage)
+        
+        if not self.stats.is_alive():
+            self.die()
+            
+        return actual_damage
+
+    def die(self):
+        """Handle entity death."""
+        self.logger.info(f"{self.type.name} has died")
+        self.event_manager.emit(GameEventType.ENTITY_DIED, {'entity': self})
+        # Additional death logic can be added here (e.g., dropping items, removing from game)
+
+    def is_adjacent_to(self, other: 'Entity') -> bool:
+        """Check if this entity is adjacent to another entity."""
+        dx = abs(self.position.x - other.position.x)
+        dy = abs(self.position.y - other.position.y)
+        return dx <= 1 and dy <= 1 and not (dx == 0 and dy == 0)
