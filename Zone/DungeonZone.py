@@ -264,7 +264,7 @@ class DungeonZone(Zone):
             )
             # Random selection of NPC type
             npc_type = random.choice([
-                EntityType.BEAST,
+                # EntityType.BEAST,
                 EntityType.UNDEAD
             ])
             new_npc = NPC(pos, npc_type)

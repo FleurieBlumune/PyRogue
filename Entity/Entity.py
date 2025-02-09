@@ -111,7 +111,7 @@ class Entity:
     def die(self):
         """Handle entity death."""
         self.logger.info(f"{self.type.name} has died")
-        self.event_manager.emit(GameEventType.ENTITY_DIED, {'entity': self})
+        self.event_manager.emit(GameEventType.ENTITY_DIED, entity=self)
         # Additional death logic can be added here (e.g., dropping items, removing from game)
 
     def is_adjacent_to(self, other: 'Entity') -> bool:

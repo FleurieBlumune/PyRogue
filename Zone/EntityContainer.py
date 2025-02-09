@@ -144,7 +144,13 @@ class EntityContainer:
         # If there's an entity and it's hostile, attempt combat
         if target_entity and entity.is_hostile_to(target_entity):
             self.logger.debug(f"{entity.type.name} attempting to attack {target_entity.type.name}")
-            return entity.attack(target_entity)
+            attack_success = entity.attack(target_entity)
+            
+            # If player attacked successfully, start a new turn (just like movement)
+            if attack_success and entity == self.player:
+                self.turn_manager.start_turn(self.entity_manager.get_entities())
+                
+            return attack_success
         
         # Otherwise proceed with normal movement
         if self.is_passable(new_x, new_y, ignoring=entity) and entity.try_spend_movement():
