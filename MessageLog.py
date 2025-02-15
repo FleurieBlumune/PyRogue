@@ -7,7 +7,7 @@ import logging
 
 class ActivityLog:
     _instance = None
-    MAX_MESSAGES = 10
+    MAX_MESSAGES = 20  # Increased from 10 since we can show more with word wrapping
 
     def __new__(cls):
         if cls._instance is None:

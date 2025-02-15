@@ -1,11 +1,5 @@
 """
 Main game loop handling initialization, game state management, and core game flow.
-
-Responsible for:
-- Game initialization and settings
-- Title screen management
-- Game state coordination
-- Update and render loop management
 """
 
 import pygame
@@ -14,12 +8,13 @@ from Zone import DungeonZone
 from Core.Renderer import Renderer
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
-from Menu import MenuFactory, MenuID, MENU_CONFIGS
+from Menu.MenuFactory import MenuFactory
+from Menu.MenuTypes import MenuID, MenuState
+from Menu.MenuConfigs import MENU_CONFIGS
 from pathlib import Path
 import logging
 import os
 import sys
-from Menu import MenuFactory, MenuID, MenuState, MENU_CONFIGS
 from MessageLog import ActivityLog
 
 class GameLoop:

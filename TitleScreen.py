@@ -4,7 +4,9 @@ Title screen implementation using the menu system.
 
 import pygame
 from Core.WindowManager import WindowManager
-from Menu import MenuFactory, MenuID, MenuState, MENU_CONFIGS
+from Menu.MenuFactory import MenuFactory
+from Menu.MenuTypes import MenuID, MenuState
+from Menu.MenuConfigs import MENU_CONFIGS
 
 class TitleScreen:
     """

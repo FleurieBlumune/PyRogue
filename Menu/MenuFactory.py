@@ -4,10 +4,14 @@ Factory class for creating menus from configuration data.
 
 from typing import Callable, Dict
 import pygame
+import logging
 from Menu.Menu import Menu
 from Menu.MenuItem import MenuItem
 from Menu.MenuTypes import MenuItemType
 from Menu.MenuConfigs import FONT_CONFIGS
+
+logger = logging.getLogger(__name__)
+logger.debug("Importing MenuFactory module")
 
 class MenuFactory:
     """
@@ -18,6 +22,7 @@ class MenuFactory:
         title_font (pygame.font.Font): Font for menu titles
         item_font (pygame.font.Font): Font for menu items
         hud_font (pygame.font.Font): Font for HUD items
+        log_font (pygame.font.Font): Font for activity log
     """
     
     def __init__(self, action_handlers: Dict[str, Callable]):
@@ -27,6 +32,8 @@ class MenuFactory:
         Args:
             action_handlers: Map of action names to handler functions
         """
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug("Initializing MenuFactory")
         self.action_handlers = action_handlers
         self.title_font = pygame.font.Font(FONT_CONFIGS["Title"]["Name"], 
                                          FONT_CONFIGS["Title"]["Size"])
@@ -34,6 +41,9 @@ class MenuFactory:
                                         FONT_CONFIGS["MenuItem"]["Size"])
         self.hud_font = pygame.font.Font(FONT_CONFIGS["HUD"]["Name"],
                                        FONT_CONFIGS["HUD"]["Size"])
+        self.log_font = pygame.font.Font(FONT_CONFIGS["ActivityLog"]["Name"],
+                                       FONT_CONFIGS["ActivityLog"]["Size"])
+        self.logger.debug("MenuFactory initialized with fonts")
         
     def create_menu(self, config: dict) -> Menu:
         """
@@ -45,8 +55,14 @@ class MenuFactory:
         Returns:
             Menu: The created menu
         """
-        # Use HUD font for HUD menus, otherwise use standard fonts
-        font_small = self.hud_font if config.get("Position") == "top-left" else self.item_font
+        self.logger.debug(f"Creating menu from config: {config.get('Title', 'Untitled')}")
+        # Use appropriate font based on menu position/type
+        if config.get("Position") == "top-left":
+            font_small = self.hud_font
+        elif config.get("Position") == "right":  # Check position instead of comparing configs
+            font_small = self.log_font
+        else:
+            font_small = self.item_font
         
         menu = Menu(config["Title"], 
                    self.title_font, 
@@ -55,7 +71,8 @@ class MenuFactory:
         
         for item_config in config["Items"]:
             menu.add_item(self._create_menu_item(item_config))
-            
+        
+        self.logger.debug(f"Created menu with {len(menu.items)} items")    
         return menu
     
     def _create_menu_item(self, config: dict) -> MenuItem:

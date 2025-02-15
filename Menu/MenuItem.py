@@ -3,7 +3,7 @@ MenuItem class for handling individual menu items and their behaviors.
 """
 
 from typing import Callable, Any, Optional
-from Menu.MenuTypes import MenuItemType
+from Menu.MenuTypes import MenuItemType  # Direct import from MenuTypes
 import logging
 
 class MenuItem:

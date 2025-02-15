@@ -1,14 +1,14 @@
-
 """
 Menu configuration data including font settings and menu layouts.
 """
 
-from Menu.MenuTypes import MenuID
+from Menu.MenuTypes import MenuID, MenuItemType  # Added MenuItemType since we use it in configs
 
 FONT_CONFIGS = {
     "Title": {"Name": None, "Size": 74},
     "MenuItem": {"Name": None, "Size": 36},
-    "HUD": {"Name": None, "Size": 24}  # Smaller font for HUD
+    "HUD": {"Name": None, "Size": 24},  # Smaller font for HUD
+    "ActivityLog": {"Name": None, "Size": 16}  # Even smaller for activity log
 }
 
 MENU_CONFIGS = {

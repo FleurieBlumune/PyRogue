@@ -2,9 +2,10 @@
 Main Menu class for handling menu display and interaction.
 """
 
-from typing import Optional, Any, Dict, Set, Tuple
+from typing import Optional, Any, Dict, Set, Tuple, List
 import pygame
 from Menu.MenuItem import MenuItem
+from Menu.MenuTypes import MenuItemType  # Add direct import for consistency
 
 class Menu:
     # Track occupied screen regions across all menus
@@ -158,7 +159,7 @@ class Menu:
             height: Screen height
         """
         padding = 10
-        log_width = width // 4  # Take up 1/4 of the screen width
+        log_width = width // 3  # Take up 1/3 of the screen width instead of 1/4
         x = width - log_width - padding
         
         # Adjust starting y position based on other menus
@@ -171,6 +172,9 @@ class Menu:
         log_surface.set_alpha(180)
         screen.blit(log_surface, (x, y))
         
+        # Calculate maximum y position for text
+        max_y = y + log_height - padding
+        
         # Draw title if present
         if self.title:
             title_surface = self.font_small.render(self.title, True, (255, 255, 255))
@@ -178,13 +182,75 @@ class Menu:
             screen.blit(title_surface, title_rect)
             y = title_rect.bottom + padding
         
-        # Draw log items, handling multiline text
+        # Draw log items with word wrapping
+        wrap_width = log_width - 2 * padding
+        
         for item in self.items:
             display_text = item.get_display_text()
-            # Split text into lines and render each separately
+            # Split text into lines and wrap each line
             for line in display_text.split('\n'):
-                if line.strip():  # Only render non-empty lines
-                    text_surface = self.font_small.render(line, True, (200, 200, 200))
-                    text_rect = text_surface.get_rect(topleft=(x + padding, y))
-                    screen.blit(text_surface, text_rect)
-                    y += text_surface.get_height() + 5  # Small spacing between lines
+                new_y = self._render_wrapped_text(screen, line, x + padding, y, wrap_width, max_y)
+                if new_y == y:  # _render_wrapped_text returned same y, meaning it couldn't render
+                    break
+                y = new_y + 5  # Add extra spacing between original lines
+                if y >= max_y:
+                    break
+                
+    def _render_wrapped_text(self, screen: pygame.Surface, text: str, x: int, y: int, max_width: int, max_y: int) -> int:
+        """
+        Render text with word wrapping, respecting maximum height.
+        
+        Args:
+            screen: Surface to render to
+            text: Text to render
+            x: Starting x position
+            y: Starting y position
+            max_width: Maximum width in pixels for text
+            max_y: Maximum y position to render text
+
+        Returns:
+            int: The new y position after rendering all wrapped lines, or original y if couldn't render
+        """
+        words = text.split(' ')
+        if not words or y >= max_y:
+            return y
+            
+        # Handle lines one at a time
+        line = []
+        for word in words:
+            # Try adding one more word
+            line.append(word)
+            # Get size if we render this line
+            fw, fh = self.font_small.size(' '.join(line))
+            if fw > max_width:
+                # Line would be too wide
+                if len(line) > 1:
+                    # Remove the last word and render the line
+                    line.pop()
+                    # Check if we can fit this line
+                    if y + fh > max_y:
+                        return y
+                    surf = self.font_small.render(' '.join(line), True, (200, 200, 200))
+                    screen.blit(surf, (x, y))
+                    y += surf.get_height()
+                    # Start a new line with the word that didn't fit
+                    line = [word]
+                else:
+                    # Single word is too long, need to force wrap it
+                    # Check if we can fit this word
+                    if y + fh > max_y:
+                        return y
+                    surf = self.font_small.render(word, True, (200, 200, 200))
+                    screen.blit(surf, (x, y))
+                    y += surf.get_height()
+                    line = []
+        
+        # Render any remaining words
+        if line:
+            surf = self.font_small.render(' '.join(line), True, (200, 200, 200))
+            # Check if we can fit the last line
+            if y + surf.get_height() <= max_y:
+                screen.blit(surf, (x, y))
+                y += surf.get_height()
+            
+        return y

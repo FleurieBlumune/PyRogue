@@ -10,6 +10,7 @@ from Menu.MenuFactory import MenuFactory
 from Menu.MenuTypes import MenuID, MenuItemType, MenuState
 from Menu.MenuConfigs import MENU_CONFIGS, FONT_CONFIGS
 
+# Define the public API
 __all__ = [
     'Menu',
     'MenuItem',
@@ -19,4 +20,4 @@ __all__ = [
     'MenuState',
     'MENU_CONFIGS',
     'FONT_CONFIGS'
-] 
+]
