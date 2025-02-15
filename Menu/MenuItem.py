@@ -85,3 +85,10 @@ class MenuItem:
             text = self.value_getter()
             return text
         return self.text
+        
+    @property
+    def scroll_offset(self) -> int:
+        """Get scroll offset for LOG type items that support scrolling."""
+        if self.type == MenuItemType.LOG and hasattr(self.value_getter, 'scroll_offset'):
+            return self.value_getter.scroll_offset
+        return 0

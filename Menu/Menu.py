@@ -6,10 +6,22 @@ from typing import Optional, Any, Dict, Set, Tuple, List
 import pygame
 from Menu.MenuItem import MenuItem
 from Menu.MenuTypes import MenuItemType  # Add direct import for consistency
+import re
 
 class Menu:
     # Track occupied screen regions across all menus
     _reserved_regions: Set[str] = set()
+    
+    # Define colors for markup and UI elements
+    COLORS = {
+        'white': (255, 255, 255),
+        'yellow': (255, 255, 0),
+        'gray': (200, 200, 200),
+        'scrollbar_track': (40, 40, 40),
+        'scrollbar_handle': (100, 100, 100),
+        'scrollbar_handle_hover': (150, 150, 150),
+        'scrollbar_handle_drag': (200, 200, 200)
+    }
     
     """
     A menu that can display and handle interaction with multiple menu items.
@@ -47,6 +59,11 @@ class Menu:
         # Register this menu's region
         Menu._reserved_regions.add(position)
         
+        self.dragging_scrollbar = False
+        self.scrollbar_hover = False
+        self.scrollbar_rect = None
+        self.scrollbar_track_rect = None
+        
     def __del__(self):
         """Clean up by removing this menu's region when destroyed."""
         Menu._reserved_regions.discard(self.position)
@@ -72,10 +89,62 @@ class Menu:
         Returns:
             Optional[Any]: Result from menu item activation if any
         """
+        # Update scrollbar hover state
+        if self.scrollbar_rect and event.type == pygame.MOUSEMOTION:
+            self.scrollbar_hover = self.scrollbar_rect.collidepoint(event.pos)
+
+        # Handle scrollbar dragging in activity log
+        if self.position == "right":
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                # Check if click was on scrollbar
+                if self.scrollbar_rect and self.scrollbar_rect.collidepoint(event.pos):
+                    self.dragging_scrollbar = True
+                    return None
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                self.dragging_scrollbar = False
+            elif event.type == pygame.MOUSEMOTION and self.dragging_scrollbar:
+                # Calculate new scroll position based on mouse position
+                if self.scrollbar_rect and len(self.items) > 0:
+                    item = self.items[0]  # Activity log is always first item
+                    if hasattr(item.value_getter, 'scroll'):
+                        # Calculate relative position in scroll area
+                        total_height = self.scrollbar_track_rect.height
+                        relative_y = event.pos[1] - self.scrollbar_track_rect.top
+                        scroll_ratio = max(0, min(1, relative_y / total_height))
+                        # Convert to message index
+                        max_scroll = len(item.value_getter.messages)
+                        new_scroll = int(max_scroll * scroll_ratio)
+                        # Update scroll position
+                        current_scroll = item.value_getter.scroll_offset
+                        if new_scroll != current_scroll:
+                            item.value_getter.scroll(new_scroll - current_scroll)
+                        return None
+
+        # Handle activity log scrolling if this is the activity log menu
+        if self.position == "right" and event.type == pygame.KEYDOWN:
+            if event.key in (pygame.K_UP, pygame.K_DOWN):
+                item = self.items[self.selected_index]
+                if item.type == MenuItemType.LOG and hasattr(item.value_getter, 'scroll'):
+                    scroll_direction = 1 if event.key == pygame.K_UP else -1
+                    # Check for shift modifier for page scrolling
+                    if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                        scroll_amount = scroll_direction * 5  # Page scroll
+                    else:
+                        scroll_amount = scroll_direction  # Line scroll
+                    item.value_getter.scroll(scroll_amount)
+                return None
+            elif event.key in (pygame.K_PAGEUP, pygame.K_PAGEDOWN):
+                item = self.items[self.selected_index]
+                if item.type == MenuItemType.LOG and hasattr(item.value_getter, 'scroll'):
+                    scroll_amount = 5 if event.key == pygame.K_PAGEUP else -5
+                    item.value_getter.scroll(scroll_amount)
+                return None
+
+        # Handle regular menu input
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_UP:
+            if event.key == pygame.K_UP and self.position != "right":
                 self.selected_index = (self.selected_index - 1) % len(self.items)
-            elif event.key == pygame.K_DOWN:
+            elif event.key == pygame.K_DOWN and self.position != "right":
                 self.selected_index = (self.selected_index + 1) % len(self.items)
             elif event.key == pygame.K_RETURN:
                 return self.items[self.selected_index].activate()
@@ -183,26 +252,74 @@ class Menu:
             y = title_rect.bottom + padding
         
         # Draw log items with word wrapping
-        wrap_width = log_width - 2 * padding
+        wrap_width = log_width - 2 * padding - 12  # Account for scrollbar width + padding
         
         for item in self.items:
             display_text = item.get_display_text()
-            # Split text into lines and wrap each line
-            for line in display_text.split('\n'):
+            # Split text into lines
+            lines = display_text.split('\n')
+            total_lines = len(lines)
+            
+            # Draw scrollbar if we have scrollable content
+            if total_lines > 0 and hasattr(item.value_getter, 'scroll_offset'):
+                scrollbar_width = 8
+                content_height = total_lines * self.font_small.get_linesize()
+                
+                if content_height > log_height:
+                    # Calculate scrollbar dimensions and position
+                    scrollbar_height = max(40, log_height * (log_height / content_height))
+                    max_scroll = len(item.value_getter.messages)
+                    scroll_progress = item.value_getter.scroll_offset / max_scroll if max_scroll > 0 else 0
+                    scrollbar_y = y + (log_height - scrollbar_height) * scroll_progress
+                    
+                    # Store scrollbar rects for hit detection
+                    self.scrollbar_track_rect = pygame.Rect(
+                        x + log_width - scrollbar_width - padding, y,
+                        scrollbar_width, log_height
+                    )
+                    self.scrollbar_rect = pygame.Rect(
+                        x + log_width - scrollbar_width - padding, scrollbar_y,
+                        scrollbar_width, scrollbar_height
+                    )
+                    
+                    # Draw scrollbar track with rounded corners
+                    track_color = self.COLORS['scrollbar_track']
+                    pygame.draw.rect(screen, track_color, self.scrollbar_track_rect, 
+                                   border_radius=4)
+                    
+                    # Draw scrollbar handle with hover/drag effects and rounded corners
+                    if self.dragging_scrollbar:
+                        handle_color = self.COLORS['scrollbar_handle_drag']
+                    elif self.scrollbar_hover:
+                        handle_color = self.COLORS['scrollbar_handle_hover']
+                    else:
+                        handle_color = self.COLORS['scrollbar_handle']
+                        
+                    # Draw handle with a slight glow effect when dragging
+                    if self.dragging_scrollbar:
+                        glow_rect = self.scrollbar_rect.inflate(4, 4)
+                        pygame.draw.rect(screen, (handle_color[0]//2, handle_color[1]//2, handle_color[2]//2), 
+                                       glow_rect, border_radius=6)
+                    
+                    pygame.draw.rect(screen, handle_color, self.scrollbar_rect, 
+                                   border_radius=4)
+            
+            # Draw messages
+            for line in lines:
                 new_y = self._render_wrapped_text(screen, line, x + padding, y, wrap_width, max_y)
-                if new_y == y:  # _render_wrapped_text returned same y, meaning it couldn't render
+                if new_y == y:  # Couldn't render more text
                     break
-                y = new_y + 5  # Add extra spacing between original lines
+                y = new_y + 5  # Add spacing between lines
                 if y >= max_y:
                     break
                 
     def _render_wrapped_text(self, screen: pygame.Surface, text: str, x: int, y: int, max_width: int, max_y: int) -> int:
         """
-        Render text with word wrapping, respecting maximum height.
+        Render text with word wrapping, respecting maximum height and color markup.
         
         Args:
             screen: Surface to render to
-            text: Text to render
+            text: Text to render (may include color markup)
             x: Starting x position
             y: Starting y position
             max_width: Maximum width in pixels for text
@@ -211,8 +328,19 @@ class Menu:
         Returns:
             int: The new y position after rendering all wrapped lines, or original y if couldn't render
         """
+        if y >= max_y:
+            return y
+
+        # Parse color markup
+        color = self.COLORS['gray']  # Default color
+        markup_pattern = r'<(\w+)>(.*?)</\w+>'
+        match = re.match(markup_pattern, text)
+        if match:
+            color_name, text = match.groups()
+            color = self.COLORS.get(color_name, color)
+
         words = text.split(' ')
-        if not words or y >= max_y:
+        if not words:
             return y
             
         # Handle lines one at a time
@@ -230,7 +358,7 @@ class Menu:
                     # Check if we can fit this line
                     if y + fh > max_y:
                         return y
-                    surf = self.font_small.render(' '.join(line), True, (200, 200, 200))
+                    surf = self.font_small.render(' '.join(line), True, color)
                     screen.blit(surf, (x, y))
                     y += surf.get_height()
                     # Start a new line with the word that didn't fit
@@ -240,14 +368,14 @@ class Menu:
                     # Check if we can fit this word
                     if y + fh > max_y:
                         return y
-                    surf = self.font_small.render(word, True, (200, 200, 200))
+                    surf = self.font_small.render(word, True, color)
                     screen.blit(surf, (x, y))
                     y += surf.get_height()
                     line = []
         
         # Render any remaining words
         if line:
-            surf = self.font_small.render(' '.join(line), True, (200, 200, 200))
+            surf = self.font_small.render(' '.join(line), True, color)
             # Check if we can fit the last line
             if y + surf.get_height() <= max_y:
                 screen.blit(surf, (x, y))

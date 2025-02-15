@@ -113,13 +113,13 @@ class GameLoop:
 
     def _create_menus(self) -> None:
         """Create the HUD and activity log menus with their handlers."""
-        # Create activity log instance
-        activity_log = ActivityLog.get_instance()
+        # Get singleton instance and keep a reference
+        self.activity_log = ActivityLog.get_instance()
         
         menu_handlers = {
             "GetPlayerHP": lambda: (self.zone.player.stats.current_hp, 
                                   self.zone.player.stats.max_hp),
-            "GetActivityLogMessages": activity_log.get_display_text
+            "GetActivityLogMessages": self.activity_log.get_display_text
         }
         menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
