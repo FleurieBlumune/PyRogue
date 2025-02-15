@@ -10,6 +10,7 @@ class MenuID(Enum):
     OPTIONS = auto()
     PAUSE = auto()
     HUD = auto()
+    ACTIVITY_LOG = auto()  # Newly added for activity log
 
 class MenuItemType(Enum):
     """Types of menu items available in the menu system."""
@@ -17,7 +18,8 @@ class MenuItemType(Enum):
     TOGGLE = auto()
     SELECTOR = auto()
     ACTION = auto()
-    STAT = auto()  # New type for displaying stats
+    STAT = auto()  # For displaying stats
+    LOG = auto()   # For activity log messages
 
 class MenuState(Enum):
     """States for menu navigation."""

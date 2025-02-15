@@ -19,6 +19,7 @@ class GameEventType(IntEnum):
     ENTITY_TURN = pygame.USEREVENT + 8
     COMBAT_ACTION = pygame.USEREVENT + 9
     ENTITY_DIED = pygame.USEREVENT + 10
+    WINDOW_RESIZED = pygame.USEREVENT + 11
 
 class EventManager:
     """Singleton event manager that handles both pygame and custom game events."""

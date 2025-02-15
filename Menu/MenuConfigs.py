@@ -1,3 +1,4 @@
+
 """
 Menu configuration data including font settings and menu layouts.
 """
@@ -79,5 +80,16 @@ MENU_CONFIGS = {
                 "GetValue": "GetPlayerHP"
             }
         ]
+    },
+    MenuID.ACTIVITY_LOG: {
+        "Title": "Activity Log",
+        "Position": "right",  # Position on right side
+        "Items": [
+            {
+                "Text": "",  # Will be populated with log messages
+                "Type": "LOG",
+                "GetValue": "GetActivityLogMessages"
+            }
+        ]
     }
-} 
+}

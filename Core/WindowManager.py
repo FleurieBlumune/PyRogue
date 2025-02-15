@@ -1,6 +1,7 @@
 import pygame
 import ctypes
 import os
+import logging
 
 class WindowManager:
     def __init__(self):
@@ -29,6 +30,7 @@ class WindowManager:
         self.screen = None
         self.current_resolution_index = 0
         self.windowed_resolution_index = 0
+        self.logger = logging.getLogger(__name__)
         
     def set_mode(self, width: int, height: int, fullscreen: bool = False) -> pygame.Surface:
         """Set the display mode and return the screen surface."""
@@ -64,10 +66,17 @@ class WindowManager:
         if not self.fullscreen:
             self.current_width = width
             self.current_height = height
+            self.logger.debug(f"Setting mode to {width}x{height}")
+            # Use RESIZABLE and SHOWN flags to ensure proper window behavior
             self.screen = pygame.display.set_mode(
                 (width, height),
-                pygame.RESIZABLE
+                pygame.RESIZABLE | pygame.SHOWN
             )
+            # Store the new dimensions immediately
+            self.current_width, self.current_height = self.screen.get_size()
+            self.logger.debug(f"New screen size: {self.current_width}x{self.current_height}")
+            # Force refresh
+            pygame.event.post(pygame.event.Event(pygame.VIDEOEXPOSE))
     
     def get_screen_size(self) -> tuple[int, int]:
         """Get current screen dimensions."""

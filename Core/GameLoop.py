@@ -19,6 +19,8 @@ from pathlib import Path
 import logging
 import os
 import sys
+from Menu import MenuFactory, MenuID, MenuState, MENU_CONFIGS
+from MessageLog import ActivityLog
 
 class GameLoop:
     """
@@ -107,24 +109,37 @@ class GameLoop:
         self.renderer.set_input_handler(self.input_handler)
         self.zone.set_event_manager(self.event_manager)
         
-        # Create HUD menu
-        self._create_hud()
+        # Create HUD and activity log menus
+        self._create_menus()
         
-        # Subscribe to quit event
+        # Subscribe to quit and resize events
         self.event_manager.subscribe(Events.GameEventType.GAME_QUIT, self._handle_quit)
+        self.event_manager.subscribe(Events.GameEventType.WINDOW_RESIZED, self._handle_resize)
 
-    def _create_hud(self) -> None:
-        """Create the HUD menu with player stat handlers."""
-        hud_handlers = {
+    def _create_menus(self) -> None:
+        """Create the HUD and activity log menus with their handlers."""
+        # Create activity log instance
+        activity_log = ActivityLog.get_instance()
+        
+        menu_handlers = {
             "GetPlayerHP": lambda: (self.zone.player.stats.current_hp, 
-                                  self.zone.player.stats.max_hp)
+                                  self.zone.player.stats.max_hp),
+            "GetActivityLogMessages": activity_log.get_display_text
         }
-        menu_factory = MenuFactory(hud_handlers)
+        menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
+        self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
 
     def _handle_quit(self) -> None:
         """Handle the quit event to stop the game loop."""
         self.running = False
+
+    def _handle_resize(self, event) -> None:
+        """Handle window resize events."""
+        self.width = event.width
+        self.height = event.height
+        # Recreate menus with new dimensions
+        self._create_menus()
 
     def _generate_dungeon(self):
         """
@@ -161,15 +176,20 @@ class GameLoop:
             if self.zone.player:  # Only center if we have a player
                 self.renderer.center_on_entity(self.zone.player)
             
+            # Get current screen dimensions from renderer
+            self.width, self.height = self.renderer.screen.get_size()
+            
             # Clear screen
             self.renderer.screen.fill((0, 0, 0))
             
             # Render game world
             self.renderer.render_without_flip(self.zone)
             
-            # Render HUD on top
+            # Render HUD and activity log on top
             if hasattr(self, 'hud_menu'):
                 self.hud_menu.render(self.renderer.screen, self.width, self.height)
+            if hasattr(self, 'activity_log_menu'):
+                self.activity_log_menu.render(self.renderer.screen, self.width, self.height)
             
             # Update display once per frame
             pygame.display.flip()

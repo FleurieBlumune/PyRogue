@@ -4,6 +4,7 @@ MenuItem class for handling individual menu items and their behaviors.
 
 from typing import Callable, Any, Optional
 from Menu.MenuTypes import MenuItemType
+import logging
 
 class MenuItem:
     """
@@ -44,6 +45,7 @@ class MenuItem:
         self.value = value
         self.value_getter = value_getter
         self.selected = False
+        self.logger = logging.getLogger(__name__)
         
     def activate(self) -> Any:
         """Activate the menu item and return any callback result."""
@@ -79,4 +81,7 @@ class MenuItem:
                 current, maximum = current_value
                 return f"{self.text}: {current}/{maximum}"
             return f"{self.text}: {current_value}"
-        return self.text 
+        elif self.type == MenuItemType.LOG and self.value_getter:
+            text = self.value_getter()
+            return text
+        return self.text

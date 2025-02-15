@@ -73,9 +73,9 @@ class NPC(Entity):
 
             if closest_target:
                 self.logger.debug(f"{self.type.name} found target {closest_target.type.name} at distance {closest_dist}")
-                # If we're next to the target, don't calculate a path
+                # If we're next to the target, attack
                 if closest_dist <= 1:
-                    # TODO: Add attack logic here later
+                    self.attack(closest_target)
                     return
                 
                 # If we have a path, validate it still leads to target 

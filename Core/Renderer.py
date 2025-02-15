@@ -174,6 +174,7 @@ class Renderer:
         """
         self.window_manager.handle_resize(new_width, new_height)
         self.width, self.height = self.window_manager.get_screen_size()
+        self.screen = pygame.display.get_surface()  # Get the current display surface
 
     def render(self, zone: Zone) -> None:
         """

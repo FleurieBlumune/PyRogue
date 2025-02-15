@@ -71,7 +71,7 @@ class MenuFactory:
         item_type = MenuItemType[config["Type"]]
         
         # Handle different item types
-        if item_type == MenuItemType.STAT:
+        if item_type in [MenuItemType.STAT, MenuItemType.LOG]:
             value_getter = self.action_handlers[config["GetValue"]]
             return MenuItem(
                 config["Text"],
@@ -100,5 +100,5 @@ class MenuFactory:
         return MenuItem(
             config["Text"],
             item_type,
-            callback=self.action_handlers.get(config["Action"])
-        ) 
+            callback=self.action_handlers.get(config.get("Action"))  # Use get() to handle missing Action
+        )

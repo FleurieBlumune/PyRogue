@@ -98,6 +98,8 @@ class InputHandler:
                     self.last_mouse_pos = event.pos
             elif event.type == pygame.VIDEORESIZE:
                 self.renderer.handle_resize(event.w, event.h)
+                # Forward resize event to game systems
+                self.event_manager.emit(GameEventType.WINDOW_RESIZED, width=event.w, height=event.h)
 
         self._handle_key_repeats(current_time)
         self._handle_path_movement()
