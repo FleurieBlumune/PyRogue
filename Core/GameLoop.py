@@ -47,15 +47,21 @@ class GameLoop:
             width (int): Initial window width
             height (int): Initial window height
         """
-        pygame.init()
-        self.display_info = pygame.display.Info()
-        self.width = width
-        self.height = height
-        self.running = True
-        
-        # Initialize core systems
-        self.event_manager = Events.EventManager.get_instance()                    
-        self.settings = self.show_title_screen()
+        self.logger = logging.getLogger(__name__)
+        try:
+            pygame.init()
+            self.display_info = pygame.display.Info()
+            self.logger.debug(f"Initial display info: {self.display_info}")
+            self.width = width
+            self.height = height
+            self.running = True
+            
+            # Initialize core systems
+            self.event_manager = Events.EventManager.get_instance()                    
+            self.settings = self.show_title_screen()
+        except Exception as e:
+            self.logger.error(f"Error initializing GameLoop: {e}", exc_info=True)
+            raise
 
     def show_title_screen(self) -> dict:
         """
@@ -119,19 +125,23 @@ class GameLoop:
         menu_handlers = {
             "GetPlayerHP": lambda: (self.zone.player.stats.current_hp, 
                                   self.zone.player.stats.max_hp),
-            "GetActivityLogMessages": self.activity_log.get_display_text
+            "GetActivityLogMessages": self.activity_log  # Pass the instance itself, not just the method
         }
         menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
         
-        # Connect activity log menu to window manager for resize handling
-        # self.renderer.window_manager.set_activity_log_menu(self.activity_log_menu)
+        # Set up initial log width for text wrapping
+        wrap_width = max(50, self.activity_log_menu.log_width - 2 * self.activity_log_menu.padding - 12)
+        self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
         
         # Set up resize callbacks for activity log
         def on_resize(width):
             # Update game area width during drag
             self.renderer.set_game_area_width(self.width - width - self.activity_log_menu.padding)
+            # Update wrap width when log width changes
+            wrap_width = max(50, width - 2 * self.activity_log_menu.padding - 12)
+            self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
             
         def on_resize_end():
             # Recenter the view after resizing is complete
@@ -146,21 +156,40 @@ class GameLoop:
 
     def _handle_resize(self, event) -> None:
         """Handle window resize events."""
-        self.width = event.width
-        self.height = event.height
-        
-        # Update the renderer's dimensions
-        self.renderer.handle_resize(event.width, event.height)
-        
-        # If we have an activity log menu, handle resize exactly like a manual drag
-        if hasattr(self, 'activity_log_menu') and hasattr(self.activity_log_menu, 'log_width'):
-            # Keep the log width the same and update the game area through the resize callback
-            if self.activity_log_menu.on_resize:
-                self.activity_log_menu.on_resize(self.activity_log_menu.log_width)
-        
-        # Recenter on player if available
-        if self.zone.player:
-            self.renderer.center_on_entity(self.zone.player)
+        try:
+            self.logger.debug(f"Handling resize event: {event.width}x{event.height}")
+            old_width, old_height = self.width, self.height
+            self.width = event.width
+            self.height = event.height
+            
+            # Update the renderer's dimensions
+            try:
+                self.renderer.handle_resize(event.width, event.height)
+            except Exception as e:
+                self.logger.error(f"Error in renderer resize: {e}", exc_info=True)
+                # Try to recover
+                self.width, self.height = old_width, old_height
+                self.renderer.handle_resize(old_width, old_height)
+                return
+            
+            # If we have an activity log menu, handle resize exactly like a manual drag
+            if hasattr(self, 'activity_log_menu') and hasattr(self.activity_log_menu, 'log_width'):
+                # Keep the log width the same and update the game area through the resize callback
+                if self.activity_log_menu.on_resize:
+                    try:
+                        self.activity_log_menu.on_resize(self.activity_log_menu.log_width)
+                    except Exception as e:
+                        self.logger.error(f"Error in activity log resize: {e}", exc_info=True)
+            
+            # Recenter on player if available
+            if self.zone.player:
+                try:
+                    self.renderer.center_on_entity(self.zone.player)
+                except Exception as e:
+                    self.logger.error(f"Error centering on player: {e}", exc_info=True)
+                    
+        except Exception as e:
+            self.logger.error(f"Error handling resize event: {e}", exc_info=True)
 
     def _generate_dungeon(self):
         """
@@ -182,53 +211,71 @@ class GameLoop:
         4. Render frame and HUD
         5. Update display
         """
-        while self.running:
-            current_time = pygame.time.get_ticks()
-            
-            # Process all events
-            for event in pygame.event.get():
-                # First try to handle with menus
-                menu_handled = False
-                if hasattr(self, 'activity_log_menu'):
-                    if self.activity_log_menu.handle_input(event):
-                        menu_handled = True
-                if not menu_handled and hasattr(self, 'hud_menu'):
-                    if self.hud_menu.handle_input(event):
-                        menu_handled = True
+        try:
+            while self.running:
+                current_time = pygame.time.get_ticks()
                 
-                # If menus didn't handle it, add it back to the event queue for the game
-                if not menu_handled:
-                    pygame.event.post(event)
-            
-            # Process remaining input (may trigger quit)
-            if self.input_handler.handle_input():
-                self.running = False
-                continue
-            
-            # Update game state
-            self.zone.update(current_time)
-            
-            # Update camera and render everything
-            if self.zone.player:  # Only center if we have a player
-                self.renderer.center_on_entity(self.zone.player)
-            
-            # Get current screen dimensions from renderer
-            self.width, self.height = self.renderer.screen.get_size()
-            
-            # Clear screen
-            self.renderer.screen.fill((0, 0, 0))
-            
-            # Render game world
-            self.renderer.render_without_flip(self.zone)
-            
-            # Render HUD and activity log on top
-            if hasattr(self, 'hud_menu'):
-                self.hud_menu.render(self.renderer.screen, self.width, self.height)
-            if hasattr(self, 'activity_log_menu'):
-                self.activity_log_menu.render(self.renderer.screen, self.width, self.height)
-            
-            # Update display once per frame
-            pygame.display.flip()
-        
-        # Clean up
-        self.renderer.cleanup()
+                try:
+                    # Process all events
+                    for event in pygame.event.get():
+                        # First try to handle with menus
+                        menu_handled = False
+                        if hasattr(self, 'activity_log_menu'):
+                            if self.activity_log_menu.handle_input(event):
+                                menu_handled = True
+                        if not menu_handled and hasattr(self, 'hud_menu'):
+                            if self.hud_menu.handle_input(event):
+                                menu_handled = True
+                        
+                        # If menus didn't handle it, add it back to the event queue for the game
+                        if not menu_handled:
+                            pygame.event.post(event)
+                    
+                    # Process remaining input (may trigger quit)
+                    if self.input_handler.handle_input():
+                        self.running = False
+                        continue
+                    
+                    # Update game state
+                    self.zone.update(current_time)
+                    
+                    # Update camera and render everything
+                    if self.zone.player:  # Only center if we have a player
+                        self.renderer.center_on_entity(self.zone.player)
+                    
+                    # Get current screen dimensions from renderer
+                    self.width, self.height = self.renderer.screen.get_size()
+                    
+                    # Clear screen and render frame
+                    try:
+                        self.renderer.screen.fill((0, 0, 0))
+                        self.renderer.render_without_flip(self.zone)
+                        
+                        # Render HUD and activity log on top
+                        if hasattr(self, 'hud_menu'):
+                            self.hud_menu.render(self.renderer.screen, self.width, self.height)
+                        if hasattr(self, 'activity_log_menu'):
+                            self.activity_log_menu.render(self.renderer.screen, self.width, self.height)
+                        
+                        # Update display once per frame
+                        pygame.display.flip()
+                    except pygame.error as e:
+                        self.logger.error(f"Pygame error during rendering: {e}", exc_info=True)
+                        # Try to recover by reinitializing the display
+                        self.renderer.handle_resize(self.width, self.height)
+                        
+                except Exception as e:
+                    self.logger.error(f"Error in game loop iteration: {e}", exc_info=True)
+                    # Only exit if it's a fatal error
+                    if isinstance(e, (pygame.error, SystemError)):
+                        raise
+                    
+        except Exception as e:
+            self.logger.critical(f"Fatal error in game loop: {e}", exc_info=True)
+            raise
+        finally:
+            # Clean up
+            try:
+                self.renderer.cleanup()
+            except Exception as e:
+                self.logger.error(f"Error during cleanup: {e}", exc_info=True)

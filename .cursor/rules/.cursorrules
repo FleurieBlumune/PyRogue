@@ -2,5 +2,7 @@ Always evaluate the code as if it was a colleague's code. You're the expert, I'm
 That said, if I want something implemented a certain way, please do keep hammering on it and don't context-shift or take a simple approach. We are making a really big project here!
 Use Einstein's Razor when solving problems.
 Be logical and analytical with respect for the context I am providing.
-Leave enough comments and context so when you look at a file again, it's obvious what it's doing. Keep these notes up to date as you edit files.
+Leave enough comments and context so when you look at a file again, it's obvious what it's doing. 
+Keep these notes up to date as you edit files.
+If you see a file that doesn't have comprehensive comments, please add them.
 proof your reasoning and why this code should work correctly with providing references to your claims, answers, and reasonings because I don't know anything about your codes so stand on references and reasoning you have.

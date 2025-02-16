@@ -15,6 +15,7 @@ from Zone import Zone
 from Zone.TileType import TileType
 from Entity.Entity import Entity, EntityType
 from Core.WindowManager import WindowManager
+import logging
 
 class Camera:
     """
@@ -46,6 +47,17 @@ class Camera:
         """
         self.x += dx
         self.y += dy
+
+    def update_boundaries(self, width: int, height: int) -> None:
+        """
+        Update the camera boundaries based on the new window dimensions.
+        
+        Args:
+            width (int): New window width
+            height (int): New window height
+        """
+        self.x = max(0, min(self.x, width - 1))
+        self.y = max(0, min(self.y, height - 1))
 
 class Renderer:
     """
@@ -174,15 +186,38 @@ class Renderer:
             new_width (int): New window width
             new_height (int): New window height
         """
-        self.window_manager.handle_resize(new_width, new_height)
-        self.width, self.height = self.window_manager.get_screen_size()
-        self.screen = pygame.display.get_surface()  # Get the current display surface
-        
-        # Update game area width to maintain the same ratio (2/3 of screen by default)
-        # unless it's been manually adjusted by the message log
-        if not hasattr(self, '_manual_game_area_width'):
-            self.game_area_width = int(self.width * 2/3)
+        try:
+            # Update window manager
+            self.window_manager.handle_resize(new_width, new_height)
             
+            # Get actual screen dimensions after resize
+            self.width, self.height = self.window_manager.get_screen_size()
+            self.screen = pygame.display.get_surface()
+            
+            # Maintain game area ratio unless manually set
+            if not hasattr(self, '_manual_game_area_width'):
+                old_game_area = self.game_area_width
+                new_game_area = int(self.width * 2/3)
+                
+                # Only update if the change is significant
+                if abs(old_game_area - new_game_area) > 10:
+                    self.game_area_width = new_game_area
+            
+            # Ensure camera boundaries are updated
+            if hasattr(self, 'camera'):
+                self.camera.update_boundaries(self.width, self.height)
+            
+            # Force a screen refresh
+            pygame.display.flip()
+            
+        except Exception as e:
+            logging.error(f"Error handling resize: {e}")
+            # Try to recover by forcing a new display surface
+            self.screen = pygame.display.set_mode(
+                (self.width, self.height),
+                pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF
+            )
+
     def set_game_area_width(self, width: int) -> None:
         """
         Set the width of the game rendering area.

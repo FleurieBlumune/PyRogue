@@ -5,6 +5,7 @@ from collections import deque
 from Core.Events import EventManager, GameEventType
 from Core.GlyphProvider import GlyphProvider
 import logging
+import re
 
 class ActivityLog:
     _instance = None
@@ -114,51 +115,55 @@ class ActivityLog:
         text = "\n".join(self.get_messages())
         return text
 
-    def _get_format_tuple(self):
-        """Get a tuple of (format_string, args) for this message."""
-        if not self.message_parts:
-            return "", ()
-        
-        # Handle basic message with no formatting
-        if len(self.message_parts) == 1:
-            return str(self.message_parts[0]), ()
-
-        # Format message with arrow rune between parts
-        rune = GlyphProvider.get('ARROW_RIGHT')
-        message_parts = [str(part) for part in self.message_parts]
-        self.text = f" {rune} ".join(message_parts)
-        return self.text, ()
-
     def set_wrap_params(self, wrap_width: int, font: 'pygame.font.Font') -> None:
+        """Set text wrapping parameters and reflow messages."""
+        self.logger.debug(f"Setting wrap width to {wrap_width}")
         self.wrap_width = wrap_width
         self.font = font
         self.reflow_messages()
 
     def reflow_messages(self) -> None:
+        """Reflow all messages with current wrap parameters."""
         if self.wrap_width is None or self.font is None:
             return
-        new_lines = []
-        for message in self.messages:
-            for line in message.splitlines():
-                wrapped = self._wrap_text(line, self.font, self.wrap_width)
-                if wrapped:
-                    new_lines.extend(wrapped)
-                else:
-                    new_lines.append("")
-        self._wrapped_lines = new_lines
+        try:
+            new_lines = []
+            for message in self.messages:
+                for line in message.splitlines():
+                    wrapped = self._wrap_text(line, self.font, self.wrap_width)
+                    if wrapped:
+                        new_lines.extend(wrapped)
+                    else:
+                        new_lines.append("")
+            self._wrapped_lines = new_lines
+            self.logger.debug(f"Reflowed {len(self.messages)} messages into {len(new_lines)} lines")
+        except Exception as e:
+            self.logger.error(f"Error reflowing messages: {e}", exc_info=True)
 
     def _wrap_text(self, text: str, font: 'pygame.font.Font', wrap_width: int) -> list:
-        words = text.split()
-        if not words:
-            return [""]
-        lines = []
-        current_line = words[0]
-        for word in words[1:]:
-            test_line = current_line + " " + word
-            if font.size(test_line)[0] <= wrap_width:
-                current_line = test_line
-            else:
-                lines.append(current_line)
-                current_line = word
-        lines.append(current_line)
-        return lines
+        """Wrap text to fit within the given width."""
+        try:
+            # Handle color markup
+            markup_pattern = r'<(\w+)>(.*?)</\w+>'
+            match = re.match(markup_pattern, text)
+            if match:
+                _, text = match.groups()  # Extract the actual text from markup
+
+            words = text.split()
+            if not words:
+                return [""]
+
+            lines = []
+            current_line = words[0]
+            for word in words[1:]:
+                test_line = current_line + " " + word
+                if font.size(test_line)[0] <= wrap_width:
+                    current_line = test_line
+                else:
+                    lines.append(current_line)
+                    current_line = word
+            lines.append(current_line)
+            return lines
+        except Exception as e:
+            self.logger.error(f"Error wrapping text: {e}", exc_info=True)
+            return [text]  # Return original text if wrapping fails

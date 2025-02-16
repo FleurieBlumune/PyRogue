@@ -82,8 +82,7 @@ class MenuItem:
                 return f"{self.text}: {current}/{maximum}"
             return f"{self.text}: {current_value}"
         elif self.type == MenuItemType.LOG and self.value_getter:
-            text = self.value_getter()
-            return text
+            return self.value_getter.get_display_text()
         return self.text
         
     @property

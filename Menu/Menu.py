@@ -59,20 +59,29 @@ class Menu:
         self.position = position
         self.logger = logging.getLogger(__name__)
         
-        # Register this menu's region
-        Menu._reserved_regions.add(position)
-        
         # Initialize state variables
         self.dragging_scrollbar = False
         self.scrollbar_hover = False
         self.scrollbar_rect = None
         self.scrollbar_track_rect = None
-        self.resizing = False  # Initialize resizing state
-        self.log_width = None  # Initialize log width
-        self.last_screen_width = None  # Initialize last screen width
-        self.padding = 10  # Initialize padding
-        self.on_resize = None  # Callback for resize events
-        self.on_resize_end = None  # Callback for when resizing ends
+        self.resizing = False
+        self.padding = 10  # Default padding
+        
+        # Initialize log width for right-positioned menus
+        if position == "right":
+            # Get screen size for initial width calculation
+            display_info = pygame.display.Info()
+            screen_width = display_info.current_w
+            self.log_width = min(screen_width // 3, 400)  # Cap initial width
+        else:
+            self.log_width = None
+            
+        self.last_screen_width = None
+        self.on_resize = None
+        self.on_resize_end = None
+        
+        # Register this menu's region
+        Menu._reserved_regions.add(position)
         
     def __del__(self):
         """Clean up by removing this menu's region when destroyed."""
@@ -97,19 +106,33 @@ class Menu:
         Args:
             new_width (int): New width for the log in pixels
         """
-        if new_width != self.log_width:
-            self.log_width = new_width
-            self.logger.debug(f"Resized message log to width: {new_width}")
-            # Update the wrap width for the ActivityLog
-            try:
-                # Calculate new wrap width considering padding and scrollbar offset (12 px)
-                new_wrap_width = self.log_width - 2 * self.padding - 12
-                ActivityLog.get_instance().set_wrap_params(new_wrap_width, self.font_small)
+        try:
+            if new_width != self.log_width:
+                old_width = self.log_width
+                self.log_width = new_width
+                self.logger.debug(f"Resized message log from {old_width} to {new_width}")
+                
+                # Calculate new wrap width considering padding and scrollbar offset
+                new_wrap_width = max(50, self.log_width - 2 * self.padding - 12)  # Ensure minimum width
+                
+                # Update ActivityLog wrap parameters
+                activity_log = ActivityLog.get_instance()
+                if activity_log:
+                    activity_log.set_wrap_params(new_wrap_width, self.font_small)
+                
                 # Notify about the resize
                 if self.on_resize:
-                    self.on_resize(new_width)
-            except Exception as e:
-                self.logger.error(f"Error updating wrap parameters: {e}")
+                    try:
+                        self.on_resize(new_width)
+                    except Exception as e:
+                        self.logger.error(f"Error in resize callback: {e}")
+                        
+        except Exception as e:
+            self.logger.error(f"Error updating log width: {e}")
+            # Try to recover by resetting to a safe width
+            self.log_width = 200
+            if self.on_resize:
+                self.on_resize(200)
 
     def handle_input(self, event: pygame.event.Event) -> Optional[Any]:
         """
@@ -281,100 +304,98 @@ class Menu:
             width: Screen width
             height: Screen height
         """
-        padding = 10
-        self.last_screen_width = width
-        self.padding = padding
-        if not hasattr(self, 'log_width') or self.log_width is None:
-            self.log_width = width // 3
-        x = width - self.log_width - padding
-        y = padding + self.get_reserved_height("top-left")  # Account for HUD height if present
-        log_height = height - 2 * padding - y
-        self._log_rect = pygame.Rect(x, y, self.log_width, log_height)
-        handle_width = 8
-        self._resize_handle_rect = pygame.Rect(x, y, handle_width, log_height)
-        
-        # Draw semi-transparent background from adjusted y position
-        log_surface = pygame.Surface((self.log_width, log_height))
-        log_surface.fill((0, 0, 0))
-        log_surface.set_alpha(180)
-        screen.blit(log_surface, (x, y))
+        try:
+            padding = 10
+            self.last_screen_width = width
+            self.padding = padding
+            
+            # Initialize or adjust log width based on screen size
+            if not hasattr(self, 'log_width') or self.log_width is None:
+                self.log_width = min(width // 3, 400)  # Cap initial width
+            elif self.log_width > width - 2 * padding:
+                # Adjust if log is too wide for new screen size
+                self.log_width = width // 3
+            
+            x = width - self.log_width - padding
+            y = padding + self.get_reserved_height("top-left")
+            log_height = height - 2 * padding - y
+            
+            # Create rectangles for log area and resize handle
+            self._log_rect = pygame.Rect(x, y, self.log_width, log_height)
+            handle_width = 8
+            self._resize_handle_rect = pygame.Rect(x, y, handle_width, log_height)
+            
+            # Draw semi-transparent background
+            log_surface = pygame.Surface((self.log_width, log_height))
+            log_surface.fill((0, 0, 0))
+            log_surface.set_alpha(180)
+            screen.blit(log_surface, (x, y))
+            
+            # Draw resize handle
+            handle_color = (200, 200, 200) if getattr(self, 'resizing', False) else (150, 150, 150)
+            pygame.draw.rect(screen, handle_color, self._resize_handle_rect)
+            
+            # Draw title if present
+            title_y = y + padding
+            if self.title:
+                title_surface = self.font_small.render(self.title, True, (255, 255, 255))
+                title_rect = title_surface.get_rect(midtop=(x + self.log_width//2, y + padding))
+                screen.blit(title_surface, title_rect)
+                title_y = title_rect.bottom + padding
+            
+            # Calculate text area
+            wrap_width = max(50, self.log_width - 2 * padding - 12)  # Ensure minimum wrap width
+            
+            # Draw log items
+            current_y = title_y
+            for item in self.items:
+                if item.type == MenuItemType.LOG:
+                    try:
+                        # Get the formatted text from the menu item
+                        text = item.get_display_text()
+                        if not text:
+                            continue
+                            
+                        # Split into lines and handle color markup
+                        lines = text.splitlines()
+                        for line in lines:
+                            if current_y >= self._log_rect.bottom - padding:
+                                break
+                                
+                            # Handle color markup
+                            color = self.COLORS['gray']  # Default color
+                            markup_pattern = r'<(\w+)>(.*?)</\w+>'
+                            match = re.match(markup_pattern, line)
+                            if match:
+                                color_name, line = match.groups()
+                                color = self.COLORS.get(color_name, color)
+                                
+                            # Render the line
+                            text_surface = self.font_small.render(line, True, color)
+                            screen.blit(text_surface, (x + padding + handle_width, current_y))
+                            current_y += self.font_small.get_height() + 2  # Small spacing between lines
+                            
+                    except Exception as e:
+                        self.logger.error(f"Error rendering log message: {e}", exc_info=True)
+                else:
+                    # Render non-log items normally
+                    if current_y >= self._log_rect.bottom - padding:
+                        break
+                    try:
+                        text = item.get_display_text()
+                        text_surface = self.font_small.render(text, True, (255, 255, 255))
+                        screen.blit(text_surface, (x + padding + handle_width, current_y))
+                        current_y += self.font_small.get_height() + 5
+                    except Exception as e:
+                        self.logger.error(f"Error rendering menu item: {e}", exc_info=True)
+                
+        except Exception as e:
+            self.logger.error(f"Error rendering right menu: {e}", exc_info=True)
+            # Draw error message if rendering fails
+            error_text = "Error rendering menu"
+            error_surface = self.font_small.render(error_text, True, (255, 0, 0))
+            screen.blit(error_surface, (width - 200, 10))
 
-        # Draw resize handle on the left edge of the log panel
-        handle_color = (200, 200, 200) if getattr(self, 'resizing', False) else (150, 150, 150)
-        pygame.draw.rect(screen, handle_color, self._resize_handle_rect)
-        
-        # Calculate maximum y position for text
-        max_y = y + log_height - padding
-        
-        # Draw title if present
-        if self.title:
-            title_surface = self.font_small.render(self.title, True, (255, 255, 255))
-            title_rect = title_surface.get_rect(midtop=(x + self.log_width//2, y + padding))
-            screen.blit(title_surface, title_rect)
-            y = title_rect.bottom + padding
-        
-        # Draw log items with word wrapping
-        wrap_width = self.log_width - 2 * padding - 12  # Account for scrollbar width + padding
-        
-        for item in self.items:
-            display_text = item.get_display_text()
-            # Split text into lines
-            lines = display_text.split('\n')
-            total_lines = len(lines)
-            
-            # Draw scrollbar if we have scrollable content
-            if total_lines > 0 and hasattr(item.value_getter, 'scroll_offset'):
-                scrollbar_width = 8
-                content_height = total_lines * self.font_small.get_linesize()
-                
-                if content_height > log_height:
-                    # Calculate scrollbar dimensions and position
-                    scrollbar_height = max(40, log_height * (log_height / content_height))
-                    max_scroll = len(item.value_getter.messages)
-                    scroll_progress = item.value_getter.scroll_offset / max_scroll if max_scroll > 0 else 0
-                    scrollbar_y = y + (log_height - scrollbar_height) * scroll_progress
-                    
-                    # Store scrollbar rects for hit detection
-                    self.scrollbar_track_rect = pygame.Rect(
-                        x + self.log_width - scrollbar_width - padding, y,
-                        scrollbar_width, log_height
-                    )
-                    self.scrollbar_rect = pygame.Rect(
-                        x + self.log_width - scrollbar_width - padding, scrollbar_y,
-                        scrollbar_width, scrollbar_height
-                    )
-                    
-                    # Draw scrollbar track with rounded corners
-                    track_color = self.COLORS['scrollbar_track']
-                    pygame.draw.rect(screen, track_color, self.scrollbar_track_rect, 
-                                   border_radius=4)
-                    
-                    # Draw scrollbar handle with hover/drag effects and rounded corners
-                    if self.dragging_scrollbar:
-                        handle_color = self.COLORS['scrollbar_handle_drag']
-                    elif self.scrollbar_hover:
-                        handle_color = self.COLORS['scrollbar_handle_hover']
-                    else:
-                        handle_color = self.COLORS['scrollbar_handle']
-                        
-                    # Draw handle with a slight glow effect when dragging
-                    if self.dragging_scrollbar:
-                        glow_rect = self.scrollbar_rect.inflate(4, 4)
-                        pygame.draw.rect(screen, (handle_color[0]//2, handle_color[1]//2, handle_color[2]//2), 
-                                       glow_rect, border_radius=6)
-                    
-                    pygame.draw.rect(screen, handle_color, self.scrollbar_rect, 
-                                   border_radius=4)
-            
-            # Draw messages
-            for line in lines:
-                new_y = self._render_wrapped_text(screen, line, x + padding, y, wrap_width, max_y)
-                if new_y == y:  # Couldn't render more text
-                    break
-                y = new_y + 5  # Add spacing between lines
-                if y >= max_y:
-                    break
-                
     def _render_wrapped_text(self, screen: pygame.Surface, text: str, x: int, y: int, max_width: int, max_y: int) -> int:
         """
         Render text with word wrapping, respecting maximum height and color markup.
