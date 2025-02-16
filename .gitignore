@@ -24,3 +24,5 @@ game.db
 # direnv
 .envrc
 .direnv
+
+logs/

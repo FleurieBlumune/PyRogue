@@ -56,7 +56,7 @@ def setup_logging(log_level=logging.DEBUG):
     sys.stdout.reconfigure(encoding='utf-8', errors='replace')
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setFormatter(console_formatter)
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.DEBUG)
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -73,8 +73,8 @@ def setup_logging(log_level=logging.DEBUG):
     logging.getLogger('pygame').setLevel(logging.DEBUG)
     logging.getLogger('Core').setLevel(logging.DEBUG)
     logging.getLogger('Menu').setLevel(logging.DEBUG)
-    logging.getLogger('Zone').setLevel(logging.INFO)
-    logging.getLogger('Entity').setLevel(logging.INFO)
+    logging.getLogger('Zone').setLevel(logging.DEBUG)
+    logging.getLogger('Entity').setLevel(logging.DEBUG)
     
     # Set up exception hook
     sys.excepthook = handle_exception
