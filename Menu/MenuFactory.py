@@ -2,9 +2,10 @@
 Factory class for creating menus from configuration data.
 """
 
-from typing import Callable, Dict
+from typing import Callable, Dict, List, Optional
 import pygame
 import logging
+import os
 from Menu.Menu import Menu
 from Menu.MenuItem import MenuItem
 from Menu.MenuTypes import MenuItemType
@@ -35,18 +36,60 @@ class MenuFactory:
         self.logger = logging.getLogger(__name__)
         self.logger.debug("Initializing MenuFactory")
         self.action_handlers = action_handlers
-        self.title_font = pygame.font.Font(FONT_CONFIGS["Title"]["Name"], 
-                                         FONT_CONFIGS["Title"]["Size"])
-        self.item_font = pygame.font.Font(FONT_CONFIGS["MenuItem"]["Name"], 
-                                        FONT_CONFIGS["MenuItem"]["Size"])
-        self.hud_font = pygame.font.Font(FONT_CONFIGS["HUD"]["Name"],
-                                       FONT_CONFIGS["HUD"]["Size"])
-        self.log_font = pygame.font.Font(FONT_CONFIGS["ActivityLog"]["Name"],
-                                       FONT_CONFIGS["ActivityLog"]["Size"])
-        self.logger.debug("MenuFactory initialized with fonts")
+
+        # Initialize fonts with Unicode support
+        pygame.font.init()
+        
+        def get_font_path(font_name: str) -> Optional[str]:
+            """Find font file path, checking Windows system locations"""
+            # Try current directory first
+            if os.path.exists(font_name):
+                return os.path.abspath(font_name)
+            
+            # Try Windows Fonts directory
+            try:
+                windows_font_dir = os.path.join(os.environ.get('WINDIR', ''), 'Fonts')
+                font_path = os.path.join(windows_font_dir, font_name)
+                if os.path.exists(font_path):
+                    return font_path
+            except:
+                pass
+                
+            return None
+
+        def create_font(config) -> pygame.font.Font:
+            """Create font with proper fallbacks for Windows"""
+            # Try Consolas first since we know it exists
+            try:
+                font_path = get_font_path("consolas.ttf")
+                if font_path:
+                    return pygame.font.Font(font_path, config["Size"])
+            except:
+                pass
+                
+            # Fall back to system default font
+            try:
+                return pygame.font.SysFont("arial", config["Size"])
+            except:
+                # Last resort - use pygame default
+                return pygame.font.Font(None, config["Size"])
+
+        # Create fonts with Unicode support
+        self.title_font = create_font(FONT_CONFIGS["Title"])
+        self.item_font = create_font(FONT_CONFIGS["MenuItem"])
+        self.hud_font = create_font(FONT_CONFIGS["HUD"])
+        self.log_font = create_font(FONT_CONFIGS["ActivityLog"])
+        
+        self.logger.debug("MenuFactory initialized with Unicode-enabled fonts")
         
     def create_menu(self, config: dict) -> Menu:
         """
+        Create a menu from configuration data.
+        
+        Args:
+            config: Dictionary containing menu configuration
+            
+        Returns:
         Create a menu from configuration data.
         
         Args:

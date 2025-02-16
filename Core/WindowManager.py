@@ -5,6 +5,18 @@ import logging
 
 class WindowManager:
     def __init__(self):
+        # Force SDL to use specific configuration before ANY pygame init
+        os.environ['PYTHONUTF8'] = '1'  # Force UTF-8 mode in Python
+        os.environ['SDL_VIDEODRIVER'] = 'windows'  # Use native Windows driver
+        os.environ['SDL_HINT_RENDER_DRIVER'] = 'direct3d'  # Use D3D for better text
+        os.environ['SDL_HINT_IME_SHOW_UI'] = '1'  # Enable IME for Unicode input
+        os.environ['SDL_HINT_VIDEO_HIGHDPI_DISABLED'] = '0'  # Enable high DPI
+        os.environ['SDL_HINT_RENDER_SCALE_QUALITY'] = '1'  # Enable smoothing
+        
+        # Initialize pygame modules in specific order
+        pygame.display.init()  # Initialize display first
+        pygame.font.init()  # Then initialize font system
+        
         self.resolutions = [
             (800, 600),
             (1024, 768),
@@ -31,33 +43,36 @@ class WindowManager:
         self.current_resolution_index = 0
         self.windowed_resolution_index = 0
         self.logger = logging.getLogger(__name__)
-        
+
     def set_mode(self, width: int, height: int, fullscreen: bool = False) -> pygame.Surface:
         """Set the display mode and return the screen surface."""
         self.current_width = width
         self.current_height = height
         self.fullscreen = fullscreen
         
+        # Reinitialize pygame with proper settings each mode change
+        pygame.display.quit()
+        pygame.font.quit()
+        
         if fullscreen:
             # Use monitor resolution for fullscreen
             self.current_width = self.monitor_width
             self.current_height = self.monitor_height
-            
-            pygame.display.quit()
-            os.environ['SDL_VIDEO_WINDOW_POS'] = "0,0"
-            pygame.display.init()
-            self.screen = pygame.display.set_mode(
-                (self.current_width, self.current_height),
-                pygame.NOFRAME
-            )
+            flags = pygame.FULLSCREEN | pygame.HWSURFACE | pygame.DOUBLEBUF
         else:
-            pygame.display.quit()
-            os.environ['SDL_VIDEO_WINDOW_POS'] = "100,100"
-            pygame.display.init()
-            self.screen = pygame.display.set_mode(
-                (self.current_width, self.current_height),
-                pygame.RESIZABLE
-            )
+            flags = pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF
+            
+        # Reinit in proper order
+        pygame.display.init()
+        pygame.font.init()
+        
+        self.screen = pygame.display.set_mode(
+            (self.current_width, self.current_height),
+            flags
+        )
+        
+        # Force a screen refresh
+        pygame.display.flip()
             
         return self.screen
     
