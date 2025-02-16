@@ -130,7 +130,8 @@ class InputHandler:
         if dx != 0 or dy != 0:
             # Move player, which will trigger turn processing in Zone.move_entity
             moved = self.zone.move_entity(self.zone.player, dx, dy)
-            if moved and self.manual_camera_control:
+            if moved:
+                # Disable manual camera control and center on player
                 self.manual_camera_control = False
                 self.renderer.center_on_entity(self.zone.player)
 
@@ -140,8 +141,12 @@ class InputHandler:
         if pos[0] > self.renderer.game_area_width:
             return  # Ignore clicks in the message log area
             
-        tile_x = (pos[0] + self.renderer.camera.x) // self.renderer.tile_size
-        tile_y = (pos[1] + self.renderer.camera.y) // self.renderer.tile_size
+        # Get current tile size from tile manager
+        tile_size = self.renderer.tile_manager.current_tile_size
+        
+        # Convert screen coordinates to tile coordinates
+        tile_x = (pos[0] + self.renderer.camera.x) // tile_size
+        tile_y = (pos[1] + self.renderer.camera.y) // tile_size
         self.zone.player.handle_click(tile_x, tile_y)
 
     def _handle_key_repeats(self, current_time):
@@ -165,4 +170,6 @@ class InputHandler:
             moved = self.zone.move_entity(self.zone.player, dx, dy)
             
             if moved:
+                # Disable manual camera control and center on player
+                self.manual_camera_control = False
                 self.renderer.center_on_entity(self.zone.player)

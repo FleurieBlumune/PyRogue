@@ -5,7 +5,7 @@ Main game loop handling initialization, game state management, and core game flo
 import pygame
 import Core.Events as Events
 from Zone import DungeonZone
-from Core.Renderer import Renderer
+from Core.Renderer import Renderer  # Import from new modular package
 from Core.InputHandler import InputHandler
 from TitleScreen import TitleScreen
 from Menu.MenuFactory import MenuFactory
@@ -101,7 +101,7 @@ class GameLoop:
         
         # Initialize renderer with settings
         fullscreen = settings.get('fullscreen', False)
-        self.renderer = Renderer(self.width, self.height, fullscreen)
+        self.renderer = Renderer(self.width, self.height, fullscreen)  # Uses new modular Renderer
         
         # Set up input handling
         self.input_handler = InputHandler(self.zone, self.renderer, self.event_manager)
@@ -116,6 +116,12 @@ class GameLoop:
         # Subscribe to quit and resize events
         self.event_manager.subscribe(Events.GameEventType.GAME_QUIT, self._handle_quit)
         self.event_manager.subscribe(Events.GameEventType.WINDOW_RESIZED, self._handle_resize)
+        
+        # Initial camera centering on player
+        if self.zone.player:
+            self.renderer.center_on_entity(self.zone.player)
+            # Force manual camera control off initially
+            self.input_handler.manual_camera_control = False
 
     def _create_menus(self) -> None:
         """Create the HUD and activity log menus with their handlers."""
@@ -210,10 +216,17 @@ class GameLoop:
         3. Update camera
         4. Render frame and HUD
         5. Update display
+        
+        The loop maintains a consistent frame rate and only renders
+        when the game state has changed.
         """
         try:
+            clock = pygame.time.Clock()
+            TARGET_FPS = 60
+            needs_render = True  # Force initial render
+            
             while self.running:
-                current_time = pygame.time.get_ticks()
+                frame_start_time = pygame.time.get_ticks()
                 
                 try:
                     # Process all events
@@ -223,46 +236,71 @@ class GameLoop:
                         if hasattr(self, 'activity_log_menu'):
                             if self.activity_log_menu.handle_input(event):
                                 menu_handled = True
+                                needs_render = True
                         if not menu_handled and hasattr(self, 'hud_menu'):
                             if self.hud_menu.handle_input(event):
                                 menu_handled = True
+                                needs_render = True
                         
                         # If menus didn't handle it, add it back to the event queue for the game
                         if not menu_handled:
+                            # Handle zoom events directly
+                            if event.type == pygame.MOUSEBUTTONDOWN:
+                                if event.button in (4, 5):  # Mouse wheel
+                                    # Check if mouse is over activity log area (right side)
+                                    log_area_x = self.renderer.width * 2 / 3
+                                    is_over_log = event.pos[0] > log_area_x
+                                    
+                                    if not is_over_log:
+                                        # Regular zoom behavior when not over log
+                                        zoom_amount = self.renderer.zoom_step if event.button == 4 else -self.renderer.zoom_step
+                                        self.renderer.adjust_zoom(zoom_amount)
+                                        needs_render = True
+                                        continue
                             pygame.event.post(event)
+                            
+                        # Mark for render on specific events
+                        if event.type in (pygame.VIDEORESIZE, pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
+                            needs_render = True
                     
                     # Process remaining input (may trigger quit)
                     if self.input_handler.handle_input():
                         self.running = False
                         continue
+                    needs_render = True  # Always render after input processing
                     
                     # Update game state
-                    self.zone.update(current_time)
+                    if self.zone.update(frame_start_time):
+                        needs_render = True
                     
-                    # Update camera and render everything
-                    if self.zone.player:  # Only center if we have a player
-                        self.renderer.center_on_entity(self.zone.player)
-                    
-                    # Get current screen dimensions from renderer
-                    self.width, self.height = self.renderer.screen.get_size()
-                    
-                    # Clear screen and render frame
-                    try:
-                        self.renderer.screen.fill((0, 0, 0))
-                        self.renderer.render_without_flip(self.zone)
+                    # Only render if something has changed
+                    if needs_render:
+                        # Get current screen dimensions from renderer
+                        self.width, self.height = self.renderer.screen.get_size()
                         
-                        # Render HUD and activity log on top
-                        if hasattr(self, 'hud_menu'):
-                            self.hud_menu.render(self.renderer.screen, self.width, self.height)
-                        if hasattr(self, 'activity_log_menu'):
-                            self.activity_log_menu.render(self.renderer.screen, self.width, self.height)
-                        
-                        # Update display once per frame
-                        pygame.display.flip()
-                    except pygame.error as e:
-                        self.logger.error(f"Pygame error during rendering: {e}", exc_info=True)
-                        # Try to recover by reinitializing the display
-                        self.renderer.handle_resize(self.width, self.height)
+                        # Clear screen and render frame
+                        try:
+                            self.renderer.screen.fill((0, 0, 0))
+                            self.renderer.render_without_flip(self.zone)
+                            
+                            # Render HUD and activity log on top
+                            if hasattr(self, 'hud_menu'):
+                                self.hud_menu.render(self.renderer.screen, self.width, self.height)
+                            if hasattr(self, 'activity_log_menu'):
+                                self.activity_log_menu.render(self.renderer.screen, self.width, self.height)
+                            
+                            # Update display once per frame
+                            pygame.display.flip()
+                            needs_render = False
+                            
+                        except pygame.error as e:
+                            self.logger.error(f"Pygame error during rendering: {e}", exc_info=True)
+                            # Try to recover by reinitializing the display
+                            self.renderer.handle_resize(self.width, self.height)
+                            needs_render = True
+                    
+                    # Control frame rate
+                    clock.tick(TARGET_FPS)
                         
                 except Exception as e:
                     self.logger.error(f"Error in game loop iteration: {e}", exc_info=True)

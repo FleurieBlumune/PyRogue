@@ -26,12 +26,17 @@ Processes all user input and converts it to game actions. Manages:
 - Path selection
 
 ### Renderer
-Handles all game visualization. Provides:
-- Tile-based rendering
-- Entity visualization
-- Camera management
-- Zoom functionality
+Modular rendering system split into specialized components:
+- Main Renderer: Coordinates all visual components
+- Camera: Manages viewport position and movement
+- TileManager: Handles tile creation, scaling, and caching
+- EntityRenderer: Specializes in entity visualization
+Features include:
+- Efficient tile-based rendering
+- Smooth camera controls
+- Dynamic zoom functionality
 - Window management
+- Entity highlighting and effects
 
 ### TurnManager
 Manages the game's turn-based systems. Handles:
