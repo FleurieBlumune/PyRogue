@@ -124,6 +124,21 @@ class GameLoop:
         menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
+        
+        # Connect activity log menu to window manager for resize handling
+        # self.renderer.window_manager.set_activity_log_menu(self.activity_log_menu)
+        
+        # Set up resize callbacks for activity log
+        def on_resize(width):
+            # Update game area width during drag
+            self.renderer.set_game_area_width(self.width - width - self.activity_log_menu.padding)
+            
+        def on_resize_end():
+            # Recenter the view after resizing is complete
+            if self.zone.player:
+                self.renderer.center_on_entity(self.zone.player)
+                
+        self.activity_log_menu.set_resize_callback(on_resize, on_resize_end)
 
     def _handle_quit(self) -> None:
         """Handle the quit event to stop the game loop."""
@@ -133,8 +148,19 @@ class GameLoop:
         """Handle window resize events."""
         self.width = event.width
         self.height = event.height
-        # Recreate menus with new dimensions
-        self._create_menus()
+        
+        # Update the renderer's dimensions
+        self.renderer.handle_resize(event.width, event.height)
+        
+        # If we have an activity log menu, handle resize exactly like a manual drag
+        if hasattr(self, 'activity_log_menu') and hasattr(self.activity_log_menu, 'log_width'):
+            # Keep the log width the same and update the game area through the resize callback
+            if self.activity_log_menu.on_resize:
+                self.activity_log_menu.on_resize(self.activity_log_menu.log_width)
+        
+        # Recenter on player if available
+        if self.zone.player:
+            self.renderer.center_on_entity(self.zone.player)
 
     def _generate_dungeon(self):
         """
@@ -159,7 +185,22 @@ class GameLoop:
         while self.running:
             current_time = pygame.time.get_ticks()
             
-            # Process input (may trigger quit)
+            # Process all events
+            for event in pygame.event.get():
+                # First try to handle with menus
+                menu_handled = False
+                if hasattr(self, 'activity_log_menu'):
+                    if self.activity_log_menu.handle_input(event):
+                        menu_handled = True
+                if not menu_handled and hasattr(self, 'hud_menu'):
+                    if self.hud_menu.handle_input(event):
+                        menu_handled = True
+                
+                # If menus didn't handle it, add it back to the event queue for the game
+                if not menu_handled:
+                    pygame.event.post(event)
+            
+            # Process remaining input (may trigger quit)
             if self.input_handler.handle_input():
                 self.running = False
                 continue

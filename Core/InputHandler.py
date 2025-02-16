@@ -136,6 +136,10 @@ class InputHandler:
 
     def _handle_mouse_click(self, pos):
         """Convert screen coordinates to tile coordinates and send to player"""
+        # Check if click is in message log area using actual game area width
+        if pos[0] > self.renderer.game_area_width:
+            return  # Ignore clicks in the message log area
+            
         tile_x = (pos[0] + self.renderer.camera.x) // self.renderer.tile_size
         tile_y = (pos[1] + self.renderer.camera.y) // self.renderer.tile_size
         self.zone.player.handle_click(tile_x, tile_y)

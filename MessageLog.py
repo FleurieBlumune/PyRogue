@@ -1,5 +1,5 @@
 """Activity log system for tracking and displaying game events."""
-
+import pygame
 from typing import List
 from collections import deque
 from Core.Events import EventManager, GameEventType
@@ -26,6 +26,9 @@ class ActivityLog:
             self.event_manager.subscribe(GameEventType.ENTITY_DIED, self._handle_death)
             self.logger = logging.getLogger(__name__)
             self.scroll_offset = 0  # Number of lines scrolled up from bottom
+            self.wrap_width = None
+            self.font = None
+            self._wrapped_lines = []
             self._initialized = True
 
     @staticmethod
@@ -57,52 +60,54 @@ class ActivityLog:
         if self.scroll_offset > 0:
             self.scroll_offset += 1
         self.logger.debug(f"Added message. Scroll offset: {self.scroll_offset}. Total messages: {len(self.messages)}")
+        if self.wrap_width is not None and self.font is not None:
+            self.reflow_messages()
 
     def scroll(self, amount: int) -> None:
         """
         Scroll the message log by the given amount.
         Positive scrolls up (shows older messages), negative scrolls down.
         """
-        # For page up/down, multiply by lines per page
-        if abs(amount) >= 5:  # If amount is 5 or more, treat as page scroll
-            amount = amount // abs(amount) * self.LINES_PER_PAGE
-
-        # Calculate maximum scroll based on message count
-        max_scroll = max(0, len(self.messages) - self.VISIBLE_MESSAGES)
+        if abs(amount) >= 5:
+            amount = (amount // abs(amount)) * self.LINES_PER_PAGE
+        total = len(self._wrapped_lines) if self.wrap_width is not None and self.font is not None else len(self.messages)
+        max_scroll = max(0, total - self.VISIBLE_MESSAGES)
         self.scroll_offset = max(0, min(max_scroll, self.scroll_offset + amount))
         self.logger.debug(f"Scrolled log to offset {self.scroll_offset}/{max_scroll}")
 
     def get_messages(self) -> List[str]:
         """Get all current messages with proper scroll indicators."""
-        messages = list(self.messages)
-        if not messages:
-            return []
-
-        # Calculate total messages and visible range
-        total_messages = len(messages)
-        max_scroll = max(0, total_messages - self.VISIBLE_MESSAGES)
-        start_idx = max(0, total_messages - self.VISIBLE_MESSAGES - self.scroll_offset)
-        end_idx = total_messages - self.scroll_offset
-
-        glyphs = GlyphProvider()
-        
-        # Add scroll indicators and message count
-        result = []
-        result.append(f"<white>Messages ({total_messages})</white>")
-
-        # Show indicator for messages above
-        if start_idx > 0:
-            result.append(f"<yellow>{glyphs.get('ARROW_UP')}</yellow>")  # Use Unicode by default
-
-        # Add visible messages
-        result.extend(messages[start_idx:end_idx])
-
-        # Show indicator for messages below
-        remaining_below = self.scroll_offset
-        if remaining_below > 0:
-            result.append(f"<yellow>{glyphs.get('ARROW_DOWN')}</yellow>")  # Use Unicode by default
-
-        return result
+        if self.wrap_width is not None and self.font is not None:
+            total_lines = len(self._wrapped_lines)
+            max_scroll = max(0, total_lines - self.VISIBLE_MESSAGES)
+            start_idx = max(0, total_lines - self.VISIBLE_MESSAGES - self.scroll_offset)
+            end_idx = total_lines - self.scroll_offset
+            glyphs = GlyphProvider()
+            result = []
+            result.append(f"<white>Messages ({len(self.messages)})</white>")
+            if start_idx > 0:
+                result.append(f"<yellow>{glyphs.get('ARROW_UP')}</yellow>")
+            result.extend(self._wrapped_lines[start_idx:end_idx])
+            if self.scroll_offset > 0:
+                result.append(f"<yellow>{glyphs.get('ARROW_DOWN')}</yellow>")
+            return result
+        else:
+            messages = list(self.messages)
+            if not messages:
+                return []
+            total_messages = len(messages)
+            max_scroll = max(0, total_messages - self.VISIBLE_MESSAGES)
+            start_idx = max(0, total_messages - self.VISIBLE_MESSAGES - self.scroll_offset)
+            end_idx = total_messages - self.scroll_offset
+            glyphs = GlyphProvider()
+            result = []
+            result.append(f"<white>Messages ({total_messages})</white>")
+            if start_idx > 0:
+                result.append(f"<yellow>{glyphs.get('ARROW_UP')}</yellow>")
+            result.extend(messages[start_idx:end_idx])
+            if self.scroll_offset > 0:
+                result.append(f"<yellow>{glyphs.get('ARROW_DOWN')}</yellow>")
+            return result
 
     def get_display_text(self) -> str:
         """Get formatted text for display."""
@@ -123,3 +128,37 @@ class ActivityLog:
         message_parts = [str(part) for part in self.message_parts]
         self.text = f" {rune} ".join(message_parts)
         return self.text, ()
+
+    def set_wrap_params(self, wrap_width: int, font: 'pygame.font.Font') -> None:
+        self.wrap_width = wrap_width
+        self.font = font
+        self.reflow_messages()
+
+    def reflow_messages(self) -> None:
+        if self.wrap_width is None or self.font is None:
+            return
+        new_lines = []
+        for message in self.messages:
+            for line in message.splitlines():
+                wrapped = self._wrap_text(line, self.font, self.wrap_width)
+                if wrapped:
+                    new_lines.extend(wrapped)
+                else:
+                    new_lines.append("")
+        self._wrapped_lines = new_lines
+
+    def _wrap_text(self, text: str, font: 'pygame.font.Font', wrap_width: int) -> list:
+        words = text.split()
+        if not words:
+            return [""]
+        lines = []
+        current_line = words[0]
+        for word in words[1:]:
+            test_line = current_line + " " + word
+            if font.size(test_line)[0] <= wrap_width:
+                current_line = test_line
+            else:
+                lines.append(current_line)
+                current_line = word
+        lines.append(current_line)
+        return lines

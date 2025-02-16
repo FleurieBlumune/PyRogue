@@ -76,6 +76,7 @@ class WindowManager:
             
         return self.screen
     
+    # this is where we also need to handle the message log resize
     def handle_resize(self, width: int, height: int) -> None:
         """Handle window resize events."""
         if not self.fullscreen:

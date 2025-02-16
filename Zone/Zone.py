@@ -18,6 +18,7 @@ from .Grid import TerrainGrid
 from .EntityContainer import EntityContainer
 from .RoomManager import RoomManager
 from .Room import Room, Corridor
+import pygame
 
 class Zone:
     """
@@ -163,4 +164,20 @@ class Zone:
     @property
     def entities(self) -> list[Entity]:
         """List of all entities in the zone."""
-        return self.entity_container.entities 
+        return self.entity_container.entities
+        
+    def get_entities_in_area(self, area: pygame.Rect) -> list[Entity]:
+        """
+        Get all entities within a given rectangular area.
+        
+        Args:
+            area (pygame.Rect): The area to check in tile coordinates
+            
+        Returns:
+            list[Entity]: List of entities within the area
+        """
+        return [
+            entity for entity in self.entities
+            if (area.left <= entity.position.x <= area.right and
+                area.top <= entity.position.y <= area.bottom)
+        ] 

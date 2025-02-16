@@ -13,7 +13,7 @@ import pygame
 from typing import Dict, Tuple, List
 from Zone import Zone
 from Zone.TileType import TileType
-from Entity.Entity import EntityType
+from Entity.Entity import Entity, EntityType
 from Core.WindowManager import WindowManager
 
 class Camera:
@@ -62,6 +62,7 @@ class Renderer:
         base_tile_size (int): Base size of tiles in pixels
         zoom_level (float): Current zoom multiplier
         entity_colors (Dict[EntityType, Tuple[int, int, int]]): Entity type colors
+        game_area_width (int): Width of the game rendering area in pixels
     """
     
     def __init__(self, width: int, height: int, fullscreen: bool = False):
@@ -78,6 +79,7 @@ class Renderer:
         self.width = width
         self.height = height
         self.screen = self.window_manager.set_mode(width, height, fullscreen)
+        self.game_area_width = int(width * 2/3)  # Initialize game area width
 
         self.base_tile_size: int = 32  # Base size for tiles
         self.zoom_level: float = 1.0   # Current zoom level
@@ -175,6 +177,21 @@ class Renderer:
         self.window_manager.handle_resize(new_width, new_height)
         self.width, self.height = self.window_manager.get_screen_size()
         self.screen = pygame.display.get_surface()  # Get the current display surface
+        
+        # Update game area width to maintain the same ratio (2/3 of screen by default)
+        # unless it's been manually adjusted by the message log
+        if not hasattr(self, '_manual_game_area_width'):
+            self.game_area_width = int(self.width * 2/3)
+            
+    def set_game_area_width(self, width: int) -> None:
+        """
+        Set the width of the game rendering area.
+        
+        Args:
+            width (int): New width in pixels
+        """
+        self.game_area_width = width
+        self._manual_game_area_width = True  # Mark that we've manually set the width
 
     def render(self, zone: Zone) -> None:
         """
@@ -193,37 +210,79 @@ class Renderer:
         Args:
             zone (Zone): The zone to render
         """
-        # Get current window size in case of resize
-        self.width, self.height = self.screen.get_size()
+        # Create a clip rect that uses the current game area width
+        game_area = pygame.Rect(0, 0, self.game_area_width, self.height)
+        old_clip = self.screen.get_clip()
+        self.screen.set_clip(game_area)
+        
+        # Get visible area
+        visible_area = self._get_visible_area()
+        
+        # Draw visible tiles
+        for y in range(visible_area.top, visible_area.bottom + 1):
+            for x in range(visible_area.left, visible_area.right + 1):
+                self._render_tile(x, y, zone)
+                
+        # Draw visible entities
+        for entity in zone.get_entities_in_area(visible_area):
+            self._render_entity(entity)
+            
+        # Restore original clip rect
+        self.screen.set_clip(old_clip)
 
-        # Calculate visible grid range
+    def _get_visible_area(self) -> pygame.Rect:
+        """
+        Calculate the visible area of the screen in tile coordinates.
+        
+        Returns:
+            pygame.Rect: The visible area in tile coordinates
+        """
+        # Convert screen coordinates to tile coordinates
         start_x = max(0, self.camera.x // self.tile_size)
         start_y = max(0, self.camera.y // self.tile_size)
-        end_x = min(zone.width, (self.camera.x + self.width) // self.tile_size + 1)
-        end_y = min(zone.height, (self.camera.y + self.height) // self.tile_size + 1)
+        
+        # Calculate how many tiles fit in the visible area using current game area width
+        visible_tiles_x = self.game_area_width // self.tile_size + 2  # Add 1 for partial tiles at edges
+        visible_tiles_y = self.height // self.tile_size + 2
+        
+        # Calculate end coordinates (will be clamped by the zone boundaries during rendering)
+        end_x = start_x + visible_tiles_x
+        end_y = start_y + visible_tiles_y
+        
+        return pygame.Rect(start_x, start_y, visible_tiles_x, visible_tiles_y)
 
-        # Draw visible tiles
-        for y in range(start_y, end_y):
-            for x in range(start_x, end_x):
-                screen_x = x * self.tile_size - self.camera.x
-                screen_y = y * self.tile_size - self.camera.y
-                tile_type = zone.grid.get_tile(x, y)
-                self.screen.blit(self.scaled_tiles[tile_type], (screen_x, screen_y))
+    def _render_tile(self, x: int, y: int, zone: Zone) -> None:
+        """
+        Render a single tile at the specified coordinates.
+        
+        Args:
+            x (int): X-coordinate of the tile
+            y (int): Y-coordinate of the tile
+            zone (Zone): The zone containing the tile
+        """
+        screen_x = x * self.tile_size - self.camera.x
+        screen_y = y * self.tile_size - self.camera.y
+        tile_type = zone.grid.get_tile(x, y)
+        self.screen.blit(self.scaled_tiles[tile_type], (screen_x, screen_y))
 
-        # Draw entities
-        entity_radius = self.tile_size // 3
-        for entity in zone.entities:
-            screen_x = entity.position.x * self.tile_size - self.camera.x
-            screen_y = entity.position.y * self.tile_size - self.camera.y
+    def _render_entity(self, entity: Entity) -> None:
+        """
+        Render a single entity at the specified coordinates.
+        
+        Args:
+            entity (Entity): The entity to render
+        """
+        screen_x = entity.position.x * self.tile_size - self.camera.x
+        screen_y = entity.position.y * self.tile_size - self.camera.y
 
-            # Only draw if within screen bounds
-            if 0 <= screen_x < self.width and 0 <= screen_y < self.height:
-                pygame.draw.circle(
-                    self.screen,
-                    self.entity_colors[entity.type],
-                    (screen_x + self.tile_size // 2, screen_y + self.tile_size // 2),
-                    entity_radius
-                )
+        # Only draw if within screen bounds
+        if 0 <= screen_x < self.width and 0 <= screen_y < self.height:
+            pygame.draw.circle(
+                self.screen,
+                self.entity_colors[entity.type],
+                (screen_x + self.tile_size // 2, screen_y + self.tile_size // 2),
+                self.tile_size // 3
+            )
 
     def center_on_entity(self, entity) -> None:
         """
@@ -234,7 +293,8 @@ class Renderer:
         """
         # Only center if we're not in manual camera control mode
         if not hasattr(self, '_input_handler') or not self._input_handler.manual_camera_control:
-            self.camera.x = entity.position.x * self.tile_size - self.width // 2
+            # Use game_area_width instead of full width for centering
+            self.camera.x = entity.position.x * self.tile_size - self.game_area_width // 2
             self.camera.y = entity.position.y * self.tile_size - self.height // 2
 
     def set_input_handler(self, input_handler) -> None:

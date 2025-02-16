@@ -5,8 +5,10 @@ Main Menu class for handling menu display and interaction.
 from typing import Optional, Any, Dict, Set, Tuple, List
 import pygame
 from Menu.MenuItem import MenuItem
-from Menu.MenuTypes import MenuItemType  # Add direct import for consistency
+from Menu.MenuTypes import MenuItemType
 import re
+import logging
+from MessageLog import ActivityLog
 
 class Menu:
     # Track occupied screen regions across all menus
@@ -55,14 +57,22 @@ class Menu:
         self.font_large = font_large
         self.font_small = font_small
         self.position = position
+        self.logger = logging.getLogger(__name__)
         
         # Register this menu's region
         Menu._reserved_regions.add(position)
         
+        # Initialize state variables
         self.dragging_scrollbar = False
         self.scrollbar_hover = False
         self.scrollbar_rect = None
         self.scrollbar_track_rect = None
+        self.resizing = False  # Initialize resizing state
+        self.log_width = None  # Initialize log width
+        self.last_screen_width = None  # Initialize last screen width
+        self.padding = 10  # Initialize padding
+        self.on_resize = None  # Callback for resize events
+        self.on_resize_end = None  # Callback for when resizing ends
         
     def __del__(self):
         """Clean up by removing this menu's region when destroyed."""
@@ -78,7 +88,29 @@ class Menu:
     def add_item(self, item: MenuItem) -> None:
         """Add a menu item to the menu."""
         self.items.append(item)
+
+
+    def update_log_width(self, new_width: int) -> None:
+        """
+        Update the message log width and notify resize listeners.
         
+        Args:
+            new_width (int): New width for the log in pixels
+        """
+        if new_width != self.log_width:
+            self.log_width = new_width
+            self.logger.debug(f"Resized message log to width: {new_width}")
+            # Update the wrap width for the ActivityLog
+            try:
+                # Calculate new wrap width considering padding and scrollbar offset (12 px)
+                new_wrap_width = self.log_width - 2 * self.padding - 12
+                ActivityLog.get_instance().set_wrap_params(new_wrap_width, self.font_small)
+                # Notify about the resize
+                if self.on_resize:
+                    self.on_resize(new_width)
+            except Exception as e:
+                self.logger.error(f"Error updating wrap parameters: {e}")
+
     def handle_input(self, event: pygame.event.Event) -> Optional[Any]:
         """
         Handle input events for the menu.
@@ -89,7 +121,33 @@ class Menu:
         Returns:
             Optional[Any]: Result from menu item activation if any
         """
-        # Update scrollbar hover state
+        # If this is the activity log menu (position 'right'), check for resize handle interactions
+        if self.position == "right":
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                if hasattr(self, '_resize_handle_rect') and self._resize_handle_rect.collidepoint(event.pos):
+                    self.resizing = True
+                    self.logger.debug("Started resizing message log")
+                    return None
+            elif event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+                if self.resizing:
+                    self.resizing = False
+                    self.logger.debug("Finished resizing message log")
+                    # Notify that resizing has ended
+                    if self.on_resize_end:
+                        self.on_resize_end()
+                    return None
+            # We should make this a public method and call it from the GameLoop
+            # That way when we resize the window, the message log will resize with it
+            elif event.type == pygame.MOUSEMOTION and self.resizing:
+                # Calculate new log width based on mouse position
+                # Right edge remains fixed at (self.last_screen_width - self.padding)
+                new_log_width = self.last_screen_width - self.padding - event.pos[0]
+                # Clamp the new log width between a minimum and a fraction of the screen width
+                new_log_width = max(100, min(new_log_width, int(self.last_screen_width * 0.8)))
+                self.update_log_width(new_log_width)
+                return None
+        
+        # Existing code: Update scrollbar hover state
         if self.scrollbar_rect and event.type == pygame.MOUSEMOTION:
             self.scrollbar_hover = self.scrollbar_rect.collidepoint(event.pos)
 
@@ -107,30 +165,26 @@ class Menu:
                 if self.scrollbar_rect and len(self.items) > 0:
                     item = self.items[0]  # Activity log is always first item
                     if hasattr(item.value_getter, 'scroll'):
-                        # Calculate relative position in scroll area
                         total_height = self.scrollbar_track_rect.height
                         relative_y = event.pos[1] - self.scrollbar_track_rect.top
                         scroll_ratio = max(0, min(1, relative_y / total_height))
-                        # Convert to message index
                         max_scroll = len(item.value_getter.messages)
                         new_scroll = int(max_scroll * scroll_ratio)
-                        # Update scroll position
                         current_scroll = item.value_getter.scroll_offset
                         if new_scroll != current_scroll:
                             item.value_getter.scroll(new_scroll - current_scroll)
                         return None
 
-        # Handle activity log scrolling if this is the activity log menu
+        # Handle activity log scrolling with keyboard
         if self.position == "right" and event.type == pygame.KEYDOWN:
             if event.key in (pygame.K_UP, pygame.K_DOWN):
                 item = self.items[self.selected_index]
                 if item.type == MenuItemType.LOG and hasattr(item.value_getter, 'scroll'):
                     scroll_direction = 1 if event.key == pygame.K_UP else -1
-                    # Check for shift modifier for page scrolling
                     if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                        scroll_amount = scroll_direction * 5  # Page scroll
+                        scroll_amount = scroll_direction * 5
                     else:
-                        scroll_amount = scroll_direction  # Line scroll
+                        scroll_amount = scroll_direction
                     item.value_getter.scroll(scroll_amount)
                 return None
             elif event.key in (pygame.K_PAGEUP, pygame.K_PAGEDOWN):
@@ -140,7 +194,7 @@ class Menu:
                     item.value_getter.scroll(scroll_amount)
                 return None
 
-        # Handle regular menu input
+        # Handle regular menu input for non-log menus
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_UP and self.position != "right":
                 self.selected_index = (self.selected_index - 1) % len(self.items)
@@ -228,18 +282,26 @@ class Menu:
             height: Screen height
         """
         padding = 10
-        log_width = width // 3  # Take up 1/3 of the screen width instead of 1/4
-        x = width - log_width - padding
-        
-        # Adjust starting y position based on other menus
+        self.last_screen_width = width
+        self.padding = padding
+        if not hasattr(self, 'log_width') or self.log_width is None:
+            self.log_width = width // 3
+        x = width - self.log_width - padding
         y = padding + self.get_reserved_height("top-left")  # Account for HUD height if present
+        log_height = height - 2 * padding - y
+        self._log_rect = pygame.Rect(x, y, self.log_width, log_height)
+        handle_width = 8
+        self._resize_handle_rect = pygame.Rect(x, y, handle_width, log_height)
         
         # Draw semi-transparent background from adjusted y position
-        log_height = height - 2 * padding - y
-        log_surface = pygame.Surface((log_width, log_height))
+        log_surface = pygame.Surface((self.log_width, log_height))
         log_surface.fill((0, 0, 0))
         log_surface.set_alpha(180)
         screen.blit(log_surface, (x, y))
+
+        # Draw resize handle on the left edge of the log panel
+        handle_color = (200, 200, 200) if getattr(self, 'resizing', False) else (150, 150, 150)
+        pygame.draw.rect(screen, handle_color, self._resize_handle_rect)
         
         # Calculate maximum y position for text
         max_y = y + log_height - padding
@@ -247,12 +309,12 @@ class Menu:
         # Draw title if present
         if self.title:
             title_surface = self.font_small.render(self.title, True, (255, 255, 255))
-            title_rect = title_surface.get_rect(midtop=(x + log_width//2, y + padding))
+            title_rect = title_surface.get_rect(midtop=(x + self.log_width//2, y + padding))
             screen.blit(title_surface, title_rect)
             y = title_rect.bottom + padding
         
         # Draw log items with word wrapping
-        wrap_width = log_width - 2 * padding - 12  # Account for scrollbar width + padding
+        wrap_width = self.log_width - 2 * padding - 12  # Account for scrollbar width + padding
         
         for item in self.items:
             display_text = item.get_display_text()
@@ -274,11 +336,11 @@ class Menu:
                     
                     # Store scrollbar rects for hit detection
                     self.scrollbar_track_rect = pygame.Rect(
-                        x + log_width - scrollbar_width - padding, y,
+                        x + self.log_width - scrollbar_width - padding, y,
                         scrollbar_width, log_height
                     )
                     self.scrollbar_rect = pygame.Rect(
-                        x + log_width - scrollbar_width - padding, scrollbar_y,
+                        x + self.log_width - scrollbar_width - padding, scrollbar_y,
                         scrollbar_width, scrollbar_height
                     )
                     
@@ -382,3 +444,14 @@ class Menu:
                 y += surf.get_height()
             
         return y
+
+    def set_resize_callback(self, callback, end_callback=None):
+        """
+        Set the callbacks for resize events.
+        
+        Args:
+            callback: Called during resizing with the new width
+            end_callback: Called when resizing ends
+        """
+        self.on_resize = callback
+        self.on_resize_end = end_callback
