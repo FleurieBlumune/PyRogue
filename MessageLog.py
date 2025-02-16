@@ -84,7 +84,7 @@ class ActivityLog:
         start_idx = max(0, total_messages - self.VISIBLE_MESSAGES - self.scroll_offset)
         end_idx = total_messages - self.scroll_offset
 
-        glyphs = GlyphProvider.get_instance()
+        glyphs = GlyphProvider()
         
         # Add scroll indicators and message count
         result = []
@@ -108,3 +108,18 @@ class ActivityLog:
         """Get formatted text for display."""
         text = "\n".join(self.get_messages())
         return text
+
+    def _get_format_tuple(self):
+        """Get a tuple of (format_string, args) for this message."""
+        if not self.message_parts:
+            return "", ()
+        
+        # Handle basic message with no formatting
+        if len(self.message_parts) == 1:
+            return str(self.message_parts[0]), ()
+
+        # Format message with arrow rune between parts
+        rune = GlyphProvider.get('ARROW_RIGHT')
+        message_parts = [str(part) for part in self.message_parts]
+        self.text = f" {rune} ".join(message_parts)
+        return self.text, ()

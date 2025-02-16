@@ -59,9 +59,9 @@ class MenuFactory:
 
         def create_font(config) -> pygame.font.Font:
             """Create font with proper fallbacks for Windows"""
-            # Try Consolas first since we know it exists
+            # Try segoeuisymbol first since we know it exists
             try:
-                font_path = get_font_path("consolas.ttf")
+                font_path = get_font_path("segoeuisymbol.ttf")
                 if font_path:
                     return pygame.font.Font(font_path, config["Size"])
             except:

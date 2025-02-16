@@ -7,25 +7,25 @@ from Menu.MenuTypes import MenuID, MenuItemType
 # Fallback chain: Consolas -> System Default
 FONT_CONFIGS = {
     "Title": {
-        "Name": ["consolas.ttf"],
+        "Name": ["segoeuisymbol.ttf", "consolas.ttf"],
         "Size": 74,
         "Bold": False,
         "Antialias": True
     },
     "MenuItem": {
-        "Name": ["consolas.ttf"],
+        "Name": ["segoeuisymbol.ttf", "consolas.ttf"],
         "Size": 36,
         "Bold": False,
         "Antialias": True
     },
     "HUD": {
-        "Name": ["consolas.ttf"],
+        "Name": ["segoeuisymbol.ttf","consolas.ttf"],
         "Size": 24,
         "Bold": False,
         "Antialias": True
     },
     "ActivityLog": {
-        "Name": ["consolas.ttf"],
+        "Name": ["segoeuisymbol.ttf","consolas.ttf"],
         "Size": 16,
         "Bold": False,
         "Antialias": True
