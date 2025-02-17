@@ -6,6 +6,7 @@ This module provides the Camera class which handles:
 - Viewport management and boundaries
 - Coordinate transformations
 - Movement and zooming behavior
+- Cursor-based zooming
 """
 
 import pygame
@@ -139,28 +140,52 @@ class Camera:
         self._emit_viewport_updated()
         self.logger.debug(f"Viewport updated from {old_width}x{old_height} to {width}x{height}")
 
-    def adjust_for_zoom(self, old_tile_size: int, new_tile_size: int) -> None:
+    def adjust_for_zoom(self, old_tile_size: int, new_tile_size: int, cursor_pos: Optional[Tuple[int, int]] = None) -> None:
         """
-        Adjust camera position when zooming to maintain the view center.
+        Adjust camera position when zooming to maintain either the cursor position or view center.
         
         Args:
             old_tile_size (int): Previous tile size in pixels
             new_tile_size (int): New tile size in pixels
+            cursor_pos (Optional[Tuple[int, int]]): Screen coordinates of cursor position to zoom around.
+                                                   If None, zooms around viewport center.
         """
-        # Get the center point in tile coordinates before zoom
-        center_x, center_y = self.viewport.center
-        tile_center_x = center_x / old_tile_size
-        tile_center_y = center_y / old_tile_size
-        
-        # Calculate new world position to maintain the same center in tile coordinates
-        new_center_x = int(tile_center_x * new_tile_size)
-        new_center_y = int(tile_center_y * new_tile_size)
-        
-        # Set new position maintaining the center point
-        self.set_position(
-            new_center_x - self.viewport.width // 2,
-            new_center_y - self.viewport.height // 2
-        )
+        if cursor_pos is None:
+            # Get the center point in tile coordinates before zoom
+            center_x, center_y = self.viewport.center
+            tile_center_x = center_x / old_tile_size
+            tile_center_y = center_y / old_tile_size
+            
+            # Calculate new world position to maintain the same center in tile coordinates
+            new_center_x = int(tile_center_x * new_tile_size)
+            new_center_y = int(tile_center_y * new_tile_size)
+            
+            # Set new position maintaining the center point
+            self.set_position(
+                new_center_x - self.viewport.width // 2,
+                new_center_y - self.viewport.height // 2
+            )
+        else:
+            # Convert cursor screen position to world coordinates before zoom
+            cursor_world_x, cursor_world_y = self.screen_to_world(*cursor_pos)
+            
+            # Convert cursor world position to tile coordinates
+            cursor_tile_x = cursor_world_x / old_tile_size
+            cursor_tile_y = cursor_world_y / old_tile_size
+            
+            # Calculate new world position of cursor after zoom
+            new_cursor_world_x = int(cursor_tile_x * new_tile_size)
+            new_cursor_world_y = int(cursor_tile_y * new_tile_size)
+            
+            # Calculate the offset needed to keep cursor at the same screen position
+            dx = new_cursor_world_x - cursor_world_x
+            dy = new_cursor_world_y - cursor_world_y
+            
+            # Adjust camera position to maintain cursor screen position
+            self.set_position(
+                self.viewport.world_x + dx,
+                self.viewport.world_y + dy
+            )
 
     def world_to_screen(self, world_x: int, world_y: int) -> Tuple[int, int]:
         """

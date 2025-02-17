@@ -163,8 +163,14 @@ class Renderer:
             new_tile_size = self.tile_manager.current_tile_size
             self.entity_renderer.update_tile_size(new_tile_size)
             
-            # Adjust camera position to maintain view center
-            self.camera.adjust_for_zoom(old_tile_size, new_tile_size)
+            # Get current mouse position for cursor-based zooming
+            cursor_pos = pygame.mouse.get_pos()
+            # Only use cursor position if it's within the game area
+            if cursor_pos[0] <= self.game_area_width:
+                self.camera.adjust_for_zoom(old_tile_size, new_tile_size, cursor_pos)
+            else:
+                # Fall back to center-based zooming if cursor is outside game area
+                self.camera.adjust_for_zoom(old_tile_size, new_tile_size)
             
             # Emit zoom changed event
             self.event_manager.emit(GameEventType.ZOOM_CHANGED, 
