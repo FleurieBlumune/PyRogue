@@ -171,6 +171,13 @@ class GameLoop:
         try:
             self.logger.debug(f"Handling resize event in GameLoop: {event.w}x{event.h}")
             old_width, old_height = self.width, self.height
+            
+            # Store original log width before any resizing
+            original_log_width = None
+            if hasattr(self, 'activity_log_menu') and hasattr(self.activity_log_menu, 'log_width'):
+                original_log_width = self.activity_log_menu.log_width
+                self.logger.debug(f"Original message log width: {original_log_width}")
+            
             self.width = event.w
             self.height = event.h
             
@@ -190,12 +197,11 @@ class GameLoop:
                 self.logger.debug("Handling activity log menu resize...")
                 self.activity_log_menu.handle_window_resize(event.w, event.h)
                 # Force a small resize to sync everything up
-                if hasattr(self.activity_log_menu, 'log_width') and self.activity_log_menu.on_resize:
-                    self.logger.debug("Forcing sync with 1px adjustment...")
-                    current_width = self.activity_log_menu.log_width
-                    # Nudge by 1 pixel and back
-                    self.activity_log_menu.on_resize(current_width + 1)
-                    self.activity_log_menu.on_resize(current_width)
+                if hasattr(self.activity_log_menu, 'log_width') and self.activity_log_menu.on_resize and original_log_width is not None:
+                    self.logger.debug(f"Forcing sync with original width: {original_log_width}")
+                    # First set to original width + 1, then back to original width
+                    self.activity_log_menu.on_resize(original_log_width + 1)
+                    self.activity_log_menu.on_resize(original_log_width)
                     self.logger.debug("Sync adjustment complete")
                 else:
                     self.logger.warning("Activity log menu missing required attributes for sync")
