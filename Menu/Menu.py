@@ -8,7 +8,7 @@ from Menu.MenuItem import MenuItem
 from Menu.MenuTypes import MenuItemType
 import re
 import logging
-from MessageLog import ActivityLog
+from Menu.MessageLog import ActivityLog
 
 class Menu:
     # Track occupied screen regions across all menus

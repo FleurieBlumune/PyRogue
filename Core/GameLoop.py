@@ -15,7 +15,7 @@ from pathlib import Path
 import logging
 import os
 import sys
-from MessageLog import ActivityLog
+from Menu.MessageLog import ActivityLog
 
 class GameLoop:
     """

@@ -166,4 +166,4 @@ class ActivityLog:
             return lines
         except Exception as e:
             self.logger.error(f"Error wrapping text: {e}", exc_info=True)
-            return [text]  # Return original text if wrapping fails
+            return [text]  # Return original text if wrapping fails 
