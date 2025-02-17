@@ -15,6 +15,7 @@ from Core.WindowManager import WindowManager
 from Core.Renderer.Camera import Camera
 from Core.Renderer.TileManager import TileManager
 from Core.Renderer.EntityRenderer import EntityRenderer
+from Core.Events import EventManager, GameEventType
 from Zone import Zone
 from Entity.Entity import Entity
 
@@ -47,6 +48,7 @@ class Renderer:
             fullscreen (bool): Whether to start in fullscreen mode
         """
         self.logger = logging.getLogger(__name__)
+        self.event_manager = EventManager.get_instance()
         
         # Initialize window management
         self.window_manager = WindowManager()
@@ -65,7 +67,23 @@ class Renderer:
         # Set up input handler reference (will be set later)
         self._input_handler = None
         
+        # Subscribe to camera events
+        self.event_manager.subscribe(GameEventType.CAMERA_MOVED, self._on_camera_moved)
+        self.event_manager.subscribe(GameEventType.VIEWPORT_UPDATED, self._on_viewport_updated)
+        
         self.logger.debug(f"Renderer initialized with dimensions {width}x{height}")
+
+    def _on_camera_moved(self, **kwargs) -> None:
+        """Handle camera movement events."""
+        # Force a redraw when camera moves
+        if hasattr(self, '_input_handler') and self._input_handler.zone:
+            self.render(self._input_handler.zone)
+
+    def _on_viewport_updated(self, **kwargs) -> None:
+        """Handle viewport update events."""
+        # Update related systems when viewport changes
+        if hasattr(self, 'entity_renderer'):
+            self.entity_renderer.update_tile_size(self.tile_manager.current_tile_size)
 
     @property
     def zoom_step(self) -> float:
@@ -137,15 +155,30 @@ class Renderer:
         Args:
             amount (float): Change in zoom level (positive=in, negative=out)
         """
+        # Store old tile size for camera adjustment
+        old_tile_size = self.tile_manager.current_tile_size
+        
         if self.tile_manager.adjust_zoom(amount):
             # Update entity renderer with new tile size
-            self.entity_renderer.update_tile_size(self.tile_manager.current_tile_size)
-            # Recenter on player if we have one and aren't in manual camera control
-            if hasattr(self, '_input_handler') and not self._input_handler.manual_camera_control:
-                from Zone import Zone
-                if isinstance(self._input_handler.zone, Zone) and self._input_handler.zone.player:
-                    self.center_on_entity(self._input_handler.zone.player)
+            new_tile_size = self.tile_manager.current_tile_size
+            self.entity_renderer.update_tile_size(new_tile_size)
+            
+            # Adjust camera position to maintain view center
+            self.camera.adjust_for_zoom(old_tile_size, new_tile_size)
+            
+            # Emit zoom changed event
+            self.event_manager.emit(GameEventType.ZOOM_CHANGED, 
+                                  level=self.current_zoom,
+                                  tile_size=new_tile_size)
+            
             self.logger.debug(f"Zoom adjusted by {amount}, new level: {self.current_zoom}")
+            
+            # Recenter on player if we have one and aren't in manual camera control
+            if (hasattr(self, '_input_handler') and 
+                not self._input_handler.manual_camera_control and
+                isinstance(self._input_handler.zone, Zone) and 
+                self._input_handler.zone.player):
+                self.center_on_entity(self._input_handler.zone.player)
 
     def center_on_entity(self, entity: Entity) -> None:
         """

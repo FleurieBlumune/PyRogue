@@ -9,10 +9,11 @@ This module provides the EntityRenderer class which handles:
 """
 
 import pygame
-from typing import Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional, List
 import logging
 from Entity.Entity import Entity, EntityType
 from Core.Renderer.Camera import Camera
+from Core.Events import EventManager, GameEventType
 
 class EntityRenderer:
     """
@@ -48,7 +49,17 @@ class EntityRenderer:
         self.tile_size = 32  # Default tile size
         self.entity_colors = self.ENTITY_COLORS.copy()
         self.logger = logging.getLogger(__name__)
+        
+        # Subscribe to camera events
+        self.event_manager = EventManager.get_instance()
+        self.event_manager.subscribe(GameEventType.VIEWPORT_UPDATED, self._on_viewport_updated)
+        
         self.logger.debug("EntityRenderer initialized")
+
+    def _on_viewport_updated(self, **kwargs) -> None:
+        """Handle viewport update events."""
+        # Update internal state if needed when viewport changes
+        pass
 
     def update_tile_size(self, new_size: int) -> None:
         """
@@ -83,75 +94,41 @@ class EntityRenderer:
         Returns:
             bool: True if the position is visible on screen
         """
-        return (0 <= screen_x < self.camera.width and 
-                0 <= screen_y < self.camera.height)
+        return (0 <= screen_x < self.camera.viewport.width and 
+                0 <= screen_y < self.camera.viewport.height)
 
-    def render_entity(self, 
-                     surface: pygame.Surface, 
-                     entity: Entity, 
-                     highlight: bool = False) -> None:
+    def render_entities(self, screen: pygame.Surface, entities: List[Entity], highlighted_entity: Optional[Entity] = None) -> None:
         """
-        Render a single entity on the screen.
+        Render a list of entities on the screen.
         
         Args:
-            surface (pygame.Surface): The surface to render on
-            entity (Entity): The entity to render
-            highlight (bool): Whether to highlight the entity
+            screen (pygame.Surface): Surface to render on
+            entities (List[Entity]): List of entities to render
+            highlighted_entity (Optional[Entity]): Entity to highlight, if any
         """
-        try:
-            # Convert world position to screen position
+        for entity in entities:
+            # Calculate screen position
             world_x = entity.position.x * self.tile_size
             world_y = entity.position.y * self.tile_size
             screen_x, screen_y = self.camera.world_to_screen(world_x, world_y)
             
-            # Check if entity is visible on screen
-            if not self.is_visible(screen_x, screen_y):
-                return
-                
-            # Calculate center position for the entity
-            center_x = screen_x + self.tile_size // 2
-            center_y = screen_y + self.tile_size // 2
-            
-            # Get entity color
-            color = self.get_entity_color(entity.type)
-            
-            # Draw entity circle
-            radius = self.tile_size // 3
-            pygame.draw.circle(surface, color, (center_x, center_y), radius)
-            
-            # Add highlight if requested
-            if highlight:
-                highlight_radius = radius + 2
+            # Only render if visible on screen
+            if self.is_visible(screen_x, screen_y):
+                # Draw entity
+                color = self.get_entity_color(entity.type)
                 pygame.draw.circle(
-                    surface, 
-                    (255, 255, 255),  # White highlight
-                    (center_x, center_y), 
-                    highlight_radius,
-                    2  # Line width
+                    screen,
+                    color,
+                    (screen_x + self.tile_size // 2, screen_y + self.tile_size // 2),
+                    self.tile_size // 3
                 )
                 
-        except Exception as e:
-            self.logger.error(f"Error rendering entity {entity.type.name}: {e}", exc_info=True)
-
-    def render_entities(self, 
-                       surface: pygame.Surface, 
-                       entities: list[Entity],
-                       highlighted_entity: Optional[Entity] = None) -> None:
-        """
-        Render a list of entities, optionally highlighting one.
-        
-        Args:
-            surface (pygame.Surface): The surface to render on
-            entities (list[Entity]): List of entities to render
-            highlighted_entity (Optional[Entity]): Entity to highlight, if any
-        """
-        try:
-            for entity in entities:
-                self.render_entity(
-                    surface, 
-                    entity, 
-                    highlight=(entity is highlighted_entity)
-                )
-            
-        except Exception as e:
-            self.logger.error(f"Error rendering entities: {e}", exc_info=True) 
+                # Draw highlight if this is the highlighted entity
+                if entity == highlighted_entity:
+                    pygame.draw.circle(
+                        screen,
+                        (255, 255, 255),  # White highlight
+                        (screen_x + self.tile_size // 2, screen_y + self.tile_size // 2),
+                        self.tile_size // 2,
+                        2  # Line width
+                    ) 

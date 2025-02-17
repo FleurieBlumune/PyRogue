@@ -15,49 +15,33 @@ from Zone import Zone
 from Zone.TileType import TileType
 from Entity.Entity import Entity, EntityType
 from Core.WindowManager import WindowManager
+from Core.Renderer.Camera import Camera, Viewport
 import logging
+from dataclasses import dataclass
 
-class Camera:
+@dataclass
+class Viewport:
     """
-    A simple camera to track the view offset in the game world.
+    Represents the visible area of the game world.
     
     Attributes:
-        x (int): X-axis offset in pixels
-        y (int): Y-axis offset in pixels
+        width (int): Width of the viewport in pixels
+        height (int): Height of the viewport in pixels
+        world_x (int): X position in world coordinates
+        world_y (int): Y position in world coordinates
     """
-    
-    def __init__(self, x: int, y: int) -> None:
-        """
-        Initialize the camera at the given coordinates.
-        
-        Args:
-            x (int): Initial X offset
-            y (int): Initial Y offset
-        """
-        self.x = x
-        self.y = y
+    width: int
+    height: int
+    world_x: int
+    world_y: int
 
-    def move(self, dx: int, dy: int) -> None:
-        """
-        Move the camera by the specified offsets.
-        
-        Args:
-            dx (int): X-axis movement delta
-            dy (int): Y-axis movement delta
-        """
-        self.x += dx
-        self.y += dy
-
-    def update_boundaries(self, width: int, height: int) -> None:
-        """
-        Update the camera boundaries based on the new window dimensions.
-        
-        Args:
-            width (int): New window width
-            height (int): New window height
-        """
-        self.x = max(0, min(self.x, width - 1))
-        self.y = max(0, min(self.y, height - 1))
+    @property
+    def center(self) -> Tuple[int, int]:
+        """Get the center point of the viewport in world coordinates."""
+        return (
+            self.world_x + self.width // 2,
+            self.world_y + self.height // 2
+        )
 
 class Renderer:
     """
@@ -173,10 +157,10 @@ class Renderer:
 
             # Adjust camera position to keep the screen center fixed
             zoom_factor = self.zoom_level / old_zoom
-            center_x = self.camera.x + self.width // 2
-            center_y = self.camera.y + self.height // 2
-            self.camera.x = int(center_x * zoom_factor - self.width // 2)
-            self.camera.y = int(center_y * zoom_factor - self.height // 2)
+            center_x = self.camera.viewport.world_x + self.width // 2
+            center_y = self.camera.viewport.world_y + self.height // 2
+            self.camera.viewport.world_x = int(center_x * zoom_factor - self.width // 2)
+            self.camera.viewport.world_y = int(center_y * zoom_factor - self.height // 2)
 
     def handle_resize(self, new_width: int, new_height: int) -> None:
         """
@@ -272,9 +256,9 @@ class Renderer:
         Returns:
             pygame.Rect: The visible area in tile coordinates
         """
-        # Convert screen coordinates to tile coordinates
-        start_x = max(0, self.camera.x // self.tile_size)
-        start_y = max(0, self.camera.y // self.tile_size)
+        # Calculate starting tile coordinates
+        start_x = max(0, self.camera.viewport.world_x // self.tile_size)
+        start_y = max(0, self.camera.viewport.world_y // self.tile_size)
         
         # Calculate how many tiles fit in the visible area using current game area width
         visible_tiles_x = self.game_area_width // self.tile_size + 2  # Add 1 for partial tiles at edges
@@ -295,8 +279,9 @@ class Renderer:
             y (int): Y-coordinate of the tile
             zone (Zone): The zone containing the tile
         """
-        screen_x = x * self.tile_size - self.camera.x
-        screen_y = y * self.tile_size - self.camera.y
+        # Convert world coordinates to screen coordinates
+        screen_x = x * self.tile_size - self.camera.viewport.world_x
+        screen_y = y * self.tile_size - self.camera.viewport.world_y
         tile_type = zone.grid.get_tile(x, y)
         self.screen.blit(self.scaled_tiles[tile_type], (screen_x, screen_y))
 
@@ -307,8 +292,9 @@ class Renderer:
         Args:
             entity (Entity): The entity to render
         """
-        screen_x = entity.position.x * self.tile_size - self.camera.x
-        screen_y = entity.position.y * self.tile_size - self.camera.y
+        # Convert entity position to screen coordinates
+        screen_x = entity.position.x * self.tile_size - self.camera.viewport.world_x
+        screen_y = entity.position.y * self.tile_size - self.camera.viewport.world_y
 
         # Only draw if within screen bounds
         if 0 <= screen_x < self.width and 0 <= screen_y < self.height:
@@ -329,8 +315,8 @@ class Renderer:
         # Only center if we're not in manual camera control mode
         if not hasattr(self, '_input_handler') or not self._input_handler.manual_camera_control:
             # Use game_area_width instead of full width for centering
-            self.camera.x = entity.position.x * self.tile_size - self.game_area_width // 2
-            self.camera.y = entity.position.y * self.tile_size - self.height // 2
+            self.camera.viewport.world_x = entity.position.x * self.tile_size - self.game_area_width // 2
+            self.camera.viewport.world_y = entity.position.y * self.tile_size - self.height // 2
 
     def set_input_handler(self, input_handler) -> None:
         """

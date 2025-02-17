@@ -20,6 +20,8 @@ class GameEventType(IntEnum):
     COMBAT_ACTION = pygame.USEREVENT + 9
     ENTITY_DIED = pygame.USEREVENT + 10
     WINDOW_RESIZED = pygame.USEREVENT + 11
+    VIEWPORT_UPDATED = pygame.USEREVENT + 12  # New event for viewport changes
+    ZOOM_CHANGED = pygame.USEREVENT + 13      # New event for zoom changes
 
 class EventManager:
     """Singleton event manager that handles both pygame and custom game events."""

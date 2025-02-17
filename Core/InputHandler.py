@@ -145,8 +145,8 @@ class InputHandler:
         tile_size = self.renderer.tile_manager.current_tile_size
         
         # Convert screen coordinates to tile coordinates
-        tile_x = (pos[0] + self.renderer.camera.x) // tile_size
-        tile_y = (pos[1] + self.renderer.camera.y) // tile_size
+        tile_x = (pos[0] + self.renderer.camera.viewport.world_x) // tile_size
+        tile_y = (pos[1] + self.renderer.camera.viewport.world_y) // tile_size
         self.zone.player.handle_click(tile_x, tile_y)
 
     def _handle_key_repeats(self, current_time):

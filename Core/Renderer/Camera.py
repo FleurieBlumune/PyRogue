@@ -2,34 +2,58 @@
 Camera system for managing view position and boundaries in the game world.
 
 This module provides the Camera class which handles:
-- View position tracking
-- Boundary enforcement
-- Smooth movement
-- Screen-to-world coordinate conversion
+- View position tracking and constraints
+- Viewport management and boundaries
+- Coordinate transformations
+- Movement and zooming behavior
 """
 
 import pygame
 import logging
-from typing import Tuple
+from typing import Tuple, Optional
+from dataclasses import dataclass
+from Core.Events import EventManager, GameEventType
+
+@dataclass
+class Viewport:
+    """
+    Represents the visible area of the game world.
+    
+    Attributes:
+        width (int): Width of the viewport in pixels
+        height (int): Height of the viewport in pixels
+        world_x (int): X position in world coordinates
+        world_y (int): Y position in world coordinates
+    """
+    width: int
+    height: int
+    world_x: int
+    world_y: int
+
+    @property
+    def center(self) -> Tuple[int, int]:
+        """Get the center point of the viewport in world coordinates."""
+        return (
+            self.world_x + self.width // 2,
+            self.world_y + self.height // 2
+        )
 
 class Camera:
     """
     Manages the viewport position and movement in the game world.
     
-    The camera maintains a position in world coordinates and provides methods
-    to move the view and convert between screen and world coordinates.
+    The camera maintains its own viewport and position, handling all
+    coordinate transformations and boundary constraints internally.
     
     Attributes:
-        x (int): X-axis position in world coordinates (pixels)
-        y (int): Y-axis position in world coordinates (pixels)
-        width (int): Viewport width in pixels
-        height (int): Viewport height in pixels
+        viewport (Viewport): Current viewport configuration
         logger (Logger): Logger instance for debugging
+        event_manager (EventManager): Event system for camera updates
     """
     
     def __init__(self, x: int, y: int, width: int, height: int) -> None:
         """
-        Initialize the camera at given coordinates with specified viewport dimensions.
+        Initialize the camera with viewport dimensions and position.
         
         Args:
             x (int): Initial X position in world coordinates
@@ -37,36 +61,56 @@ class Camera:
             width (int): Viewport width in pixels
             height (int): Viewport height in pixels
         """
-        self.x = x
-        self.y = y
-        self.width = width
-        self.height = height
+        self.viewport = Viewport(width, height, x, y)
         self.logger = logging.getLogger(__name__)
+        self.event_manager = EventManager.get_instance()
+        self._world_bounds: Optional[pygame.Rect] = None
         self.logger.debug(f"Camera initialized at ({x}, {y}) with viewport {width}x{height}")
 
     def move(self, dx: int, dy: int) -> None:
         """
-        Move the camera by the specified offsets.
+        Move the camera by the specified offsets, respecting world boundaries.
         
         Args:
             dx (int): X-axis movement delta in pixels
             dy (int): Y-axis movement delta in pixels
         """
-        self.x += dx
-        self.y += dy
-        self.logger.debug(f"Camera moved by ({dx}, {dy}) to ({self.x}, {self.y})")
+        new_x = self.viewport.world_x + dx
+        new_y = self.viewport.world_y + dy
+        
+        if self._world_bounds:
+            # Constrain to world boundaries
+            new_x = max(self._world_bounds.left, min(new_x, self._world_bounds.right - self.viewport.width))
+            new_y = max(self._world_bounds.top, min(new_y, self._world_bounds.bottom - self.viewport.height))
+        
+        if new_x != self.viewport.world_x or new_y != self.viewport.world_y:
+            self.viewport.world_x = new_x
+            self.viewport.world_y = new_y
+            self._emit_camera_moved()
+            self.logger.debug(f"Camera moved to ({new_x}, {new_y})")
 
     def set_position(self, x: int, y: int) -> None:
         """
-        Set the camera's absolute position.
+        Set the camera's absolute position, respecting world boundaries.
         
         Args:
             x (int): New X position in world coordinates
             y (int): New Y position in world coordinates
         """
-        self.x = x
-        self.y = y
-        self.logger.debug(f"Camera position set to ({x}, {y})")
+        self.move(x - self.viewport.world_x, y - self.viewport.world_y)
+
+    def set_world_bounds(self, bounds: pygame.Rect) -> None:
+        """
+        Set the world boundaries that constrain camera movement.
+        
+        Args:
+            bounds (pygame.Rect): Rectangle defining the world boundaries
+        """
+        self._world_bounds = bounds
+        self.logger.debug(f"World bounds set to {bounds}")
+        
+        # Ensure current position respects new bounds
+        self.set_position(self.viewport.world_x, self.viewport.world_y)
 
     def update_viewport(self, width: int, height: int) -> None:
         """
@@ -76,10 +120,47 @@ class Camera:
             width (int): New viewport width in pixels
             height (int): New viewport height in pixels
         """
-        old_width, old_height = self.width, self.height
-        self.width = width
-        self.height = height
+        # Store the center point before changing dimensions
+        old_center_x, old_center_y = self.viewport.center
+        
+        # Update dimensions
+        old_width, old_height = self.viewport.width, self.viewport.height
+        self.viewport.width = width
+        self.viewport.height = height
+        
+        # Adjust position to maintain the same center point
+        self.viewport.world_x = old_center_x - width // 2
+        self.viewport.world_y = old_center_y - height // 2
+        
+        # Ensure position still respects world bounds
+        if self._world_bounds:
+            self.set_position(self.viewport.world_x, self.viewport.world_y)
+            
+        self._emit_viewport_updated()
         self.logger.debug(f"Viewport updated from {old_width}x{old_height} to {width}x{height}")
+
+    def adjust_for_zoom(self, old_tile_size: int, new_tile_size: int) -> None:
+        """
+        Adjust camera position when zooming to maintain the view center.
+        
+        Args:
+            old_tile_size (int): Previous tile size in pixels
+            new_tile_size (int): New tile size in pixels
+        """
+        # Get the center point in tile coordinates before zoom
+        center_x, center_y = self.viewport.center
+        tile_center_x = center_x / old_tile_size
+        tile_center_y = center_y / old_tile_size
+        
+        # Calculate new world position to maintain the same center in tile coordinates
+        new_center_x = int(tile_center_x * new_tile_size)
+        new_center_y = int(tile_center_y * new_tile_size)
+        
+        # Set new position maintaining the center point
+        self.set_position(
+            new_center_x - self.viewport.width // 2,
+            new_center_y - self.viewport.height // 2
+        )
 
     def world_to_screen(self, world_x: int, world_y: int) -> Tuple[int, int]:
         """
@@ -92,8 +173,8 @@ class Camera:
         Returns:
             Tuple[int, int]: Screen coordinates (x, y)
         """
-        screen_x = world_x - self.x
-        screen_y = world_y - self.y
+        screen_x = world_x - self.viewport.world_x
+        screen_y = world_y - self.viewport.world_y
         return screen_x, screen_y
 
     def screen_to_world(self, screen_x: int, screen_y: int) -> Tuple[int, int]:
@@ -107,8 +188,8 @@ class Camera:
         Returns:
             Tuple[int, int]: World coordinates (x, y)
         """
-        world_x = screen_x + self.x
-        world_y = screen_y + self.y
+        world_x = screen_x + self.viewport.world_x
+        world_y = screen_y + self.viewport.world_y
         return world_x, world_y
 
     def get_visible_area(self, tile_size: int) -> pygame.Rect:
@@ -122,11 +203,23 @@ class Camera:
             pygame.Rect: Rectangle representing visible area in tile coordinates
         """
         # Convert screen coordinates to tile coordinates
-        start_x = max(0, self.x // tile_size)
-        start_y = max(0, self.y // tile_size)
+        start_x = max(0, self.viewport.world_x // tile_size)
+        start_y = max(0, self.viewport.world_y // tile_size)
         
         # Calculate how many tiles fit in the visible area
-        visible_tiles_x = self.width // tile_size + 2  # Add 2 for partial tiles at edges
-        visible_tiles_y = self.height // tile_size + 2
+        visible_tiles_x = self.viewport.width // tile_size + 2  # Add 2 for partial tiles at edges
+        visible_tiles_y = self.viewport.height // tile_size + 2
         
-        return pygame.Rect(start_x, start_y, visible_tiles_x, visible_tiles_y) 
+        return pygame.Rect(start_x, start_y, visible_tiles_x, visible_tiles_y)
+
+    def _emit_camera_moved(self) -> None:
+        """Emit event when camera position changes."""
+        self.event_manager.emit(GameEventType.CAMERA_MOVED, 
+                              x=self.viewport.world_x, 
+                              y=self.viewport.world_y)
+
+    def _emit_viewport_updated(self) -> None:
+        """Emit event when viewport dimensions change."""
+        self.event_manager.emit(GameEventType.VIEWPORT_UPDATED,
+                              width=self.viewport.width,
+                              height=self.viewport.height) 
