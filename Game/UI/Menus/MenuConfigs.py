@@ -112,5 +112,108 @@ MENU_CONFIGS = {
                 "GetValue": "GetActivityLogMessages"
             }
         ]
+    },
+    MenuID.INVENTORY: {
+        "Title": "Inventory",
+        "Position": "center",
+        "Items": [
+            {
+                "Text": "Cards",
+                "Type": "LIST",
+                "GetValue": "GetInventoryCards",
+                "Action": "SelectCard"
+            },
+            {
+                "Text": "Build Deck",
+                "Type": "ACTION",
+                "Action": "ShowDeckBuilder"
+            },
+            {
+                "Text": "Back",
+                "Type": "ACTION",
+                "Action": "MenuBack"
+            }
+        ]
+    },
+    MenuID.DECK_BUILDER: {
+        "Title": "Deck Builder",
+        "Position": "center",
+        "Items": [
+            {
+                "Text": "Available Cards",
+                "Type": "LIST",
+                "GetValue": "GetAvailableCards",
+                "Action": "AddCardToDeck"
+            },
+            {
+                "Text": "Current Deck",
+                "Type": "LIST",
+                "GetValue": "GetCurrentDeck",
+                "Action": "RemoveCardFromDeck"
+            },
+            {
+                "Text": "Save Deck",
+                "Type": "ACTION",
+                "Action": "SaveDeck",
+                "Enabled": "CanSaveDeck"
+            },
+            {
+                "Text": "Back",
+                "Type": "ACTION",
+                "Action": "MenuBack"
+            }
+        ]
+    },
+    MenuID.CARD_DETAIL: {
+        "Title": "Card Details",
+        "Position": "center",
+        "Items": [
+            {
+                "Text": "",  # Will be populated with card name
+                "Type": "HEADER"
+            },
+            {
+                "Text": "",  # Will be populated with card description
+                "Type": "TEXT"
+            },
+            {
+                "Text": "",  # Will be populated with card stats
+                "Type": "STAT",
+                "GetValue": "GetCardStats"
+            },
+            {
+                "Text": "Use Card",
+                "Type": "ACTION",
+                "Action": "UseCard",
+                "Enabled": "CanUseCard"
+            },
+            {
+                "Text": "Back",
+                "Type": "ACTION",
+                "Action": "MenuBack"
+            }
+        ]
+    },
+    MenuID.IN_GAME_CARDS: {
+        "Title": "Cards",
+        "Position": "right",
+        "Items": [
+            {
+                "Text": "Hand",
+                "Type": "LIST",
+                "GetValue": "GetCurrentHand",
+                "Action": "SelectHandCard"
+            },
+            {
+                "Text": "Draw Pile",
+                "Type": "STAT",
+                "GetValue": "GetDrawPileCount"
+            },
+            {
+                "Text": "Discard Pile",
+                "Type": "STAT",
+                "GetValue": "GetDiscardPileCount"
+            }
+        ]
     }
 }

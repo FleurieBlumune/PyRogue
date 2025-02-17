@@ -62,7 +62,7 @@ class MenuFactory:
             """Create font with proper fallbacks for Windows"""
             # Try segoeuisymbol first since we know it exists
             try:
-                font_path = get_font_path("segoeuisymbol.ttf")
+                font_path = get_font_path("Game/Content/Assets/Fonts/segoeuisymbol.ttf")
                 if font_path:
                     return pygame.font.Font(font_path, config["Size"])
             except:

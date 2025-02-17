@@ -8,6 +8,17 @@ A roguelike game where the player uses serum injectors (represented as cards) to
 ### Card System
 The game uses a card-based inventory system where each card represents a serum injector that can transform entities into different animals.
 
+#### Deck Management
+The deck system represents the player's actively available cards during gameplay:
+- Maximum deck size of 20 cards
+- Cards must be in the player's inventory to be added to deck
+- Deck is shuffled at the start of each level
+- Draw pile and discard pile mechanics
+- Hand size of 5 cards
+- Cards are discarded after use (if not consumed)
+- Deck can be modified between levels
+- Deck persistence between levels (unless cards are consumed)
+
 #### Card Data Management
 Cards are defined in `Data/CSV/cards.csv` with the following structure:
 - `id`: Unique identifier for the card
@@ -76,6 +87,59 @@ The `CardLoader` utility in `Game/Content/Cards/CardLoader.py` handles loading a
 - Wolf
 - Bear
 
+### UI System
+
+#### Menu Structure
+The game features several specialized menus for card management:
+
+1. **Inventory Menu** (`MenuID.INVENTORY`)
+   - Card list with quantities
+   - Access to deck builder
+   - Visual rarity indicators
+   - Card details view
+
+2. **Deck Builder** (`MenuID.DECK_BUILDER`)
+   - Available cards list
+   - Current deck list
+   - Deck validation
+   - Save/cancel options
+
+3. **Card Details** (`MenuID.CARD_DETAIL`)
+   - Card name and description
+   - Detailed stats display
+   - Use card option (when available)
+   - Side effects list
+
+4. **In-Game Cards** (`MenuID.IN_GAME_CARDS`)
+   - Current hand display
+   - Draw pile counter
+   - Discard pile counter
+   - Quick card selection
+
+#### Visual Elements
+- Rarity symbols:
+  - Common: ◆ (White)
+  - Uncommon: ◆ (Green)
+  - Rare: ◆ (Blue)
+  - Legendary: ★ (Gold)
+- Card counts and stack display
+- Scrollable card lists
+- Stat displays
+
+#### Controls
+- **In Game**
+  - `Tab`: Toggle card hand display
+  - `I`: Open inventory
+  - `1-5`: Quick select cards in hand
+  - `Space`: Use selected card
+  - `Esc`: Open pause menu
+
+- **Inventory/Deck Building**
+  - `Arrow Keys`: Navigate lists
+  - `Enter`: Select/Use card
+  - `Tab`: Switch between lists
+  - `Esc`: Back/Close menu
+
 ## Planned Features
 
 ### Immediate Todo
@@ -98,6 +162,12 @@ The `CardLoader` utility in `Game/Content/Cards/CardLoader.py` handles loading a
   - Base card definitions
   - Card factory for creating different types
   - Inventory management system
+  - Deck management system
+- UI system (`Game/UI/`)
+  - Menu configurations
+  - Card UI manager
+  - Visual elements
+  - Input handling
 
 ### Design Principles
 1. Modular and extensible card system
@@ -112,6 +182,7 @@ The `CardLoader` utility in `Game/Content/Cards/CardLoader.py` handles loading a
 - Basic card types and effects
 - Inventory management system
 - Core animal transformations
+- Card UI system and menus
 
 ---
 *This document will be updated as new features are implemented and design decisions are made.* 

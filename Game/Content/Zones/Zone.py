@@ -57,7 +57,7 @@ class Zone:
         
         self.logger.debug("Zone initialized")
         
-    def update(self, current_time: int) -> None:
+    def update(self, current_time: int = None) -> None:
         """
         Update the zone state for the current frame.
         
