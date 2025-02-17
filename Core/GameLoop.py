@@ -265,10 +265,18 @@ class GameLoop:
                             if event.type == pygame.MOUSEBUTTONDOWN:
                                 if event.button in (4, 5):  # Mouse wheel
                                     # Check if mouse is over activity log area (right side)
-                                    log_area_x = self.renderer.width * 2 / 3
+                                    log_area_x = self.width - self.activity_log_menu.log_width - self.activity_log_menu.padding
                                     is_over_log = event.pos[0] > log_area_x
                                     
-                                    if not is_over_log:
+                                    if is_over_log:
+                                        # Scroll the log when mouse wheel is used over it
+                                        scroll_amount = -1 if event.button == 4 else 1
+                                        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
+                                            scroll_amount *= 5
+                                        self.activity_log.scroll(scroll_amount)
+                                        needs_render = True
+                                        continue
+                                    else:
                                         # Regular zoom behavior when not over log
                                         zoom_amount = self.renderer.zoom_step if event.button == 4 else -self.renderer.zoom_step
                                         self.renderer.adjust_zoom(zoom_amount)

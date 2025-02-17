@@ -103,7 +103,7 @@ MENU_CONFIGS = {
         ]
     },
     MenuID.ACTIVITY_LOG: {
-        "Title": "Activity Log (↑↓ or wheel to scroll, hold Shift for page scroll)",  # Updated scroll controls hint
+        "Title": "Activity Log ↑↓",  # Updated scroll controls hint
         "Position": "right",  # Position on right side
         "Items": [
             {
