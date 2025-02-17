@@ -4,8 +4,8 @@ Main entry point for the game.
 
 import sys
 import traceback
-from Core.GameLoop import GameLoop
-from Core.LogConfig import setup_logging, log_system_info
+from Engine.Core.GameLoop import GameLoop
+from Engine.Core.LogConfig import setup_logging, log_system_info
 import logging
 
 def main():

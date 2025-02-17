@@ -1,0 +1,7 @@
+id,name,description,rarity,transformation,duration,success_rate,side_effects,max_uses
+basic_rat_injector,Basic Rat Serum,A common serum that transforms targets into rats.,COMMON,RAT,-1,0.75,"nausea,dizziness",3
+basic_cat_injector,Basic Cat Serum,A common serum that transforms targets into cats.,COMMON,CAT,-1,0.75,"drowsiness,confusion",3
+advanced_dog_injector,Advanced Dog Serum,An improved serum with higher success rate for canine transformation.,UNCOMMON,DOG,-1,0.90,"mild_disorientation",2
+advanced_wolf_injector,Advanced Wolf Serum,A powerful serum for wolf transformation.,UNCOMMON,WOLF,-1,0.90,"aggression,hunger",2
+experimental_bear_injector,Experimental Bear Serum,A temporary but reliable bear transformation serum.,RARE,BEAR,300,1.00,"extreme_hunger,hibernation_urge",1
+masterwork_wolf_injector,Masterwork Wolf Serum,A perfectly crafted wolf transformation serum.,LEGENDARY,WOLF,-1,1.00,"",5 
