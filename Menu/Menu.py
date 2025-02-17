@@ -476,3 +476,38 @@ class Menu:
         """
         self.on_resize = callback
         self.on_resize_end = end_callback
+
+    def handle_window_resize(self, new_width: int, new_height: int) -> None:
+        """
+        Handle window resize events by adjusting menu dimensions.
+        
+        Args:
+            new_width (int): New window width in pixels
+            new_height (int): New window height in pixels
+        """
+        try:
+            self.logger.debug(f"Menu handling window resize: {new_width}x{new_height}, position={self.position}")
+            if self.position == "right":
+                # Calculate new log width based on screen width
+                new_log_width = int(new_width / 3)  # Keep log at 1/3 of screen width
+                
+                self.logger.debug(f"Current log width: {self.log_width}, New target width: {new_log_width}")
+                
+                # Only update if there's a significant change
+                if abs(self.log_width - new_log_width) > 10:
+                    self.logger.debug("Significant width change detected, updating...")
+                    # Use the existing resize callback to ensure consistent behavior
+                    if self.on_resize:
+                        self.logger.debug("Using resize callback")
+                        self.on_resize(new_log_width)
+                    else:
+                        self.logger.debug("No resize callback, using direct update")
+                        # Fallback if no callback is set
+                        self.update_log_width(new_log_width)
+                    
+                    self.logger.debug(f"Window resize adjusted log width to {new_log_width}")
+                else:
+                    self.logger.debug("Change too small, skipping update")
+                    
+        except Exception as e:
+            self.logger.error(f"Error handling window resize: {e}", exc_info=True)

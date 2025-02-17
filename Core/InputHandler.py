@@ -83,28 +83,6 @@ class InputHandler:
                     self.is_dragging = True
                     self.last_mouse_pos = event.pos
                     self.manual_camera_control = True
-                elif event.button in (4, 5):  # Mouse wheel up/down
-                    # Check if mouse is over activity log area (right side)
-                    log_area_x = self.renderer.width * 2 / 3
-                    is_over_log = event.pos[0] > log_area_x
-                    
-                    if is_over_log:
-                        activity_log = ActivityLog.get_instance()
-                        # Button 4 is wheel up (older messages), 5 is wheel down (newer messages)
-                        # Note: We invert the direction because scrolling up should show older messages
-                        scroll_direction = 1 if event.button == 4 else -1
-                        # Use larger scroll amount if shift is held
-                        if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                            scroll_amount = scroll_direction * 5  # Page scroll
-                        else:
-                            scroll_amount = scroll_direction  # Line scroll
-                        activity_log.scroll(scroll_amount)
-                    else:
-                        # Regular zoom behavior when not over log
-                        if event.button == 4:  # Mouse wheel up
-                            self.renderer.adjust_zoom(self.renderer.zoom_step)
-                        else:  # Mouse wheel down
-                            self.renderer.adjust_zoom(-self.renderer.zoom_step)
             elif event.type == pygame.MOUSEBUTTONUP:
                 if event.button == 3:  # Right click release
                     self.is_dragging = False
@@ -115,10 +93,6 @@ class InputHandler:
                     dy = self.last_mouse_pos[1] - event.pos[1]
                     self.renderer.camera.move(dx, dy)
                     self.last_mouse_pos = event.pos
-            elif event.type == pygame.VIDEORESIZE:
-                self.renderer.handle_resize(event.w, event.h)
-                # Forward resize event to game systems
-                self.event_manager.emit(GameEventType.WINDOW_RESIZED, width=event.w, height=event.h)
 
         self._handle_key_repeats(current_time)
         self._handle_path_movement()

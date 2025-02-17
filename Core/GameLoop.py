@@ -143,11 +143,17 @@ class GameLoop:
         
         # Set up resize callbacks for activity log
         def on_resize(width):
+            # Update the menu's internal width
+            self.activity_log_menu.log_width = width
+            
             # Update game area width during drag
             self.renderer.set_game_area_width(self.width - width - self.activity_log_menu.padding)
+            
             # Update wrap width when log width changes
             wrap_width = max(50, width - 2 * self.activity_log_menu.padding - 12)
             self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
+            
+            self.logger.debug(f"Activity log resized to {width}, game area width: {self.width - width - self.activity_log_menu.padding}")
             
         def on_resize_end():
             # Recenter the view after resizing is complete
@@ -163,14 +169,15 @@ class GameLoop:
     def _handle_resize(self, event) -> None:
         """Handle window resize events."""
         try:
-            self.logger.debug(f"Handling resize event: {event.width}x{event.height}")
+            self.logger.debug(f"Handling resize event in GameLoop: {event.w}x{event.h}")
             old_width, old_height = self.width, self.height
-            self.width = event.width
-            self.height = event.height
+            self.width = event.w
+            self.height = event.h
             
             # Update the renderer's dimensions
             try:
-                self.renderer.handle_resize(event.width, event.height)
+                self.logger.debug("Updating renderer dimensions...")
+                self.renderer.handle_resize(event.w, event.h)
             except Exception as e:
                 self.logger.error(f"Error in renderer resize: {e}", exc_info=True)
                 # Try to recover
@@ -178,14 +185,22 @@ class GameLoop:
                 self.renderer.handle_resize(old_width, old_height)
                 return
             
-            # If we have an activity log menu, handle resize exactly like a manual drag
-            if hasattr(self, 'activity_log_menu') and hasattr(self.activity_log_menu, 'log_width'):
-                # Keep the log width the same and update the game area through the resize callback
-                if self.activity_log_menu.on_resize:
-                    try:
-                        self.activity_log_menu.on_resize(self.activity_log_menu.log_width)
-                    except Exception as e:
-                        self.logger.error(f"Error in activity log resize: {e}", exc_info=True)
+            # Update menu dimensions
+            if hasattr(self, 'activity_log_menu'):
+                self.logger.debug("Handling activity log menu resize...")
+                self.activity_log_menu.handle_window_resize(event.w, event.h)
+                # Force a small resize to sync everything up
+                if hasattr(self.activity_log_menu, 'log_width') and self.activity_log_menu.on_resize:
+                    self.logger.debug("Forcing sync with 1px adjustment...")
+                    current_width = self.activity_log_menu.log_width
+                    # Nudge by 1 pixel and back
+                    self.activity_log_menu.on_resize(current_width + 1)
+                    self.activity_log_menu.on_resize(current_width)
+                    self.logger.debug("Sync adjustment complete")
+                else:
+                    self.logger.warning("Activity log menu missing required attributes for sync")
+            else:
+                self.logger.warning("No activity log menu found during resize")
             
             # Recenter on player if available
             if self.zone.player:
@@ -209,16 +224,6 @@ class GameLoop:
     def run(self) -> None:
         """
         Main game loop that handles input, updates, and rendering.
-        
-        Coordinates the game systems in the following order:
-        1. Process input
-        2. Update game state
-        3. Update camera
-        4. Render frame and HUD
-        5. Update display
-        
-        The loop maintains a consistent frame rate and only renders
-        when the game state has changed.
         """
         try:
             clock = pygame.time.Clock()
@@ -241,6 +246,12 @@ class GameLoop:
                             if self.hud_menu.handle_input(event):
                                 menu_handled = True
                                 needs_render = True
+                        
+                        # Handle resize events directly
+                        if event.type == pygame.VIDEORESIZE:
+                            self._handle_resize(event)
+                            needs_render = True
+                            continue
                         
                         # If menus didn't handle it, add it back to the event queue for the game
                         if not menu_handled:
@@ -307,7 +318,6 @@ class GameLoop:
                     # Only exit if it's a fatal error
                     if isinstance(e, (pygame.error, SystemError)):
                         raise
-                    
         except Exception as e:
             self.logger.critical(f"Fatal error in game loop: {e}", exc_info=True)
             raise
