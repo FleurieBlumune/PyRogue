@@ -6,6 +6,6 @@ This package contains:
 - UI components
 """
 
-from .MessageLog import ActivityLog
+from .MessageLog import MessageLog
 
-__all__ = ['ActivityLog']
+__all__ = ['MessageLog']

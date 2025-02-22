@@ -51,17 +51,20 @@ class InputHandler:
 
         self.event_manager = event_manager
 
-    def handle_input(self) -> bool:
+    def handle_input(self, events) -> bool:
         """
-        Process all pending input events.
+        Process input events.
         
+        Args:
+            events: List of pygame events to process
+            
         Returns:
             bool: True if the game should quit, False otherwise
         """
         current_time = pygame.time.get_ticks()
         quit_game = False
         
-        for event in pygame.event.get():
+        for event in events:
             if event.type == pygame.QUIT:
                 self.event_manager.emit(GameEventType.GAME_QUIT)
                 quit_game = True
@@ -92,6 +95,11 @@ class InputHandler:
                     dy = self.last_mouse_pos[1] - event.pos[1]
                     self.renderer.camera.move(dx, dy)
                     self.last_mouse_pos = event.pos
+            elif event.type == pygame.MOUSEWHEEL:
+                # Zoom in/out based on scroll direction
+                # Positive y means scroll up (zoom in), negative y means scroll down (zoom out)
+                zoom_amount = event.y * 0.1  # Scale the zoom amount
+                self.renderer.adjust_zoom(zoom_amount)
 
         self._handle_key_repeats(current_time)
         self._handle_path_movement()

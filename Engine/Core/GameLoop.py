@@ -14,7 +14,7 @@ from pathlib import Path
 import logging
 import os
 import sys
-from Game.UI.Menus.MessageLog import ActivityLog
+from Game.UI.Menus import MessageLog
 from dataclasses import dataclass
 from typing import Optional, Dict, Any, Tuple
 
@@ -62,8 +62,12 @@ class GameSystemManager:
         
         # UI systems
         self.ui_manager: Optional[pygame_gui.UIManager] = None
-        self.activity_log: Optional[ActivityLog] = None
+        self.message_log: Optional[MessageLog] = None
+        self.hud_panel: Optional[pygame_gui.elements.UIPanel] = None
         self.hud_label: Optional[pygame_gui.elements.UILabel] = None
+        
+        # Subscribe to window resize events
+        self.event_manager.subscribe(Events.GameEventType.WINDOW_RESIZED, self._handle_resize)
         
     def initialize_game_systems(self, settings: Dict[str, Any]) -> None:
         """
@@ -116,23 +120,32 @@ class GameSystemManager:
         theme_path = os.path.join('Game', 'UI', 'theme.json')
         self.ui_manager = pygame_gui.UIManager((self.state.width, self.state.height), theme_path)
         
-        # Initialize activity log
-        self.activity_log = ActivityLog.get_instance()
-        log_width = 300  # Default width for activity log
-        self.activity_log.initialize_ui(
-            self.ui_manager,
-            pygame.Rect(self.state.width - log_width, 0, log_width, self.state.height)
+        # Initialize message log
+        log_width = 300  # Default width for message log
+        self.message_log = MessageLog(
+            ui_manager=self.ui_manager,
+            rect=pygame.Rect(self.state.width - log_width, 0, log_width, self.state.height)
         )
         
-        # Initialize HUD
+        # Initialize HUD panel
+        hud_height = 40
+        self.hud_panel = pygame_gui.elements.UIPanel(
+            relative_rect=pygame.Rect((0, 0), (self.state.width - log_width, hud_height)),
+            manager=self.ui_manager,
+            object_id="#hud_panel"
+        )
+        
+        # Initialize HUD label inside the panel
         self.hud_label = pygame_gui.elements.UILabel(
-            relative_rect=pygame.Rect((10, 10), (200, 30)),
+            relative_rect=pygame.Rect((10, 0), (200, hud_height)),
             text=f"HP: {self.zone.player.stats.current_hp}/{self.zone.player.stats.max_hp}",
-            manager=self.ui_manager
+            manager=self.ui_manager,
+            container=self.hud_panel
         )
         
-        # Update renderer game area width
+        # Update renderer game area width and offset
         self.renderer.set_game_area_width(self.state.width - log_width)
+        self.renderer.set_vertical_offset(hud_height)
     
     def _setup_event_handlers(self) -> None:
         """Set up event subscriptions."""
@@ -142,53 +155,55 @@ class GameSystemManager:
     def _handle_quit(self) -> None:
         """Handle quit event."""
         self.state.running = False
-    
-    def _handle_resize(self, event) -> None:
+        
+    def _handle_resize(self, old_width: int, old_height: int, new_width: int, new_height: int) -> None:
         """
         Handle window resize events.
         
         Args:
-            event: Pygame resize event
+            old_width (int): Previous window width
+            old_height (int): Previous window height
+            new_width (int): New window width
+            new_height (int): New window height
         """
         try:
-            self.state.width = event.w
-            self.state.height = event.h
+            # Update state dimensions
+            self.state.width = new_width
+            self.state.height = new_height
             
-            # Update UI manager
-            self.ui_manager.set_window_resolution((event.w, event.h))
+            # Update UI manager dimensions
+            self.ui_manager.set_window_resolution((new_width, new_height))
             
-            # Update activity log position and size
-            log_width = 300  # Keep consistent width
-            self.activity_log.resize(pygame.Rect(event.w - log_width, 0, log_width, event.h))
+            # Update game area width based on message log position
+            if self.message_log:
+                game_area_width = self.message_log.rect.left
+                self.renderer.set_game_area_width(game_area_width)
             
-            # Update renderer
-            self.renderer.handle_resize(event.w, event.h)
-            self.renderer.set_game_area_width(event.w - log_width)
+            # Force a redraw
+            self.state.needs_render = True
             
-            # Recenter camera
-            if self.zone.player:
-                self.renderer.center_on_entity(self.zone.player)
+            # Update HUD panel width if it exists
+            if self.hud_panel:
+                game_area_width = self.renderer.game_area_width
+                self.hud_panel.set_dimensions((game_area_width, self.hud_panel.rect.height))
+            
+            self.logger.debug(f"Handled resize from {old_width}x{old_height} to {new_width}x{new_height}")
             
         except Exception as e:
-            self.logger.error(f"Error handling resize event: {e}", exc_info=True)
-    
+            self.logger.error(f"Error handling resize: {e}", exc_info=True)
+            
     def update_hud(self) -> None:
-        """Update HUD display."""
+        """Update the HUD display."""
         if self.hud_label and self.zone.player:
             self.hud_label.set_text(
                 f"HP: {self.zone.player.stats.current_hp}/{self.zone.player.stats.max_hp}"
             )
-    
+            
     def cleanup(self) -> None:
-        """Clean up game systems."""
-        try:
-            if self.renderer:
-                self.renderer.cleanup()
-            if self.ui_manager:
-                self.ui_manager.clear_and_reset()
-        except Exception as e:
-            self.logger.error(f"Error during cleanup: {e}", exc_info=True)
-
+        """Clean up resources before shutdown."""
+        if self.ui_manager:
+            self.ui_manager.clear_and_reset()
+            
 class GameLoop:
     """
     Core game loop handler that manages the main game flow and initialization.
@@ -290,7 +305,10 @@ class GameLoop:
     def _handle_events(self) -> None:
         """Handle all pending events."""
         try:
-            for event in pygame.event.get():
+            # Get all events once
+            events = pygame.event.get()
+            
+            for event in events:
                 if event.type == pygame.QUIT:
                     self.state.running = False
                     return
@@ -298,11 +316,11 @@ class GameLoop:
                 # Let UI manager handle events first
                 if self.systems.ui_manager:
                     self.systems.ui_manager.process_events(event)
-                
-                # Handle game input
-                if self.systems.input_handler.handle_input():
-                    self.state.running = False
-                    return
+            
+            # Pass all events to input handler
+            if self.systems.input_handler.handle_input(events):
+                self.state.running = False
+                return
                     
         except Exception as e:
             self.logger.error(f"Error handling events: {e}", exc_info=True)
@@ -310,9 +328,6 @@ class GameLoop:
     def _render_frame(self) -> None:
         """Render a frame of the game."""
         try:
-            # Clear screen
-            self.systems.renderer.clear_screen()
-            
             # Render game world
             self.systems.renderer.render(self.systems.zone)
             

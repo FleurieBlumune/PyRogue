@@ -22,13 +22,106 @@
             "selected_border": "#808080",
             "active_border": "#808080",
             "filled_bar": "#6495ED",
-            "unfilled_bar": "#404040"
+            "unfilled_bar": "#404040",
+            
+            "message_text": "#CCCCCC",
+            "message_bg": "#000000",
+            "message_border": "#404040",
+            "timestamp_text": "#808080",
+            "combat_text": "#FF6B6B",
+            "death_text": "#FF4040",
+            "info_text": "#6495ED"
         },
         "font":
         {
             "name": "consolas",
             "size": "24",
             "regular_path": "Game/Content/Assets/Fonts/segoeuisymbol.ttf"
+        }
+    },
+    "message_log":
+    {
+        "colours":
+        {
+            "dark_bg": "#000000",
+            "normal_border": "#404040",
+            "normal_text": "#FFFFFF",
+            "title_text": "#CCCCCC",
+            "title_background": "#000000",
+            "title_border": "#404040",
+            "close_button_normal": "#00000000",
+            "close_button_hovered": "#00000000",
+            "close_button_pressed": "#00000000"
+        },
+        "misc":
+        {
+            "border_width": "1",
+            "shadow_width": "2",
+            "shape": "rectangle",
+            "shape_corner_radius": "2",
+            "title_horiz_alignment": "center",
+            "title_vert_alignment": "center",
+            "title_horiz_alignment_padding": "5",
+            "title_vert_alignment_padding": "2"        
+        },
+        "font":
+        {
+            "name": "consolas",
+            "size": "16"
+        }
+    },
+    "message_log.#message_log_text":
+    {
+        "colours":
+        {
+            "normal_text": "#CCCCCC",
+            "dark_bg": "#000000",
+            "link_text": "#6495ED",
+            "link_hover": "#4169E1"
+        },
+        "font":
+        {
+            "name": "consolas",
+            "size": "16"
+        },
+        "misc":
+        {
+            "border_width": "0",
+            "padding": "5",
+            "enable_close_button": "0",
+            "text_horiz_alignment": "left",
+            "text_vert_alignment": "top",
+            "text_horiz_alignment_padding": "5",
+            "text_vert_alignment_padding": "5"
+        }
+    },
+    "message_log.#timestamp":
+    {
+        "colours": {
+            "normal_text": "#808080"
+        },
+        "font":
+        {
+            "name": "consolas",
+            "size": "14"
+        }
+    },
+    "message_log.#combat":
+    {
+        "colours": {
+            "normal_text": "#FF6B6B"
+        }
+    },
+    "message_log.#death":
+    {
+        "colours": {
+            "normal_text": "#FF4040"
+        }
+    },
+    "message_log.#info":
+    {
+        "colours": {
+            "normal_text": "#6495ED"
         }
     },
     "button":
@@ -92,6 +185,28 @@
             "border_width": "1",
             "shadow_width": "1",
             "expand_direction": "down"
+        }
+    },
+    "hud_panel":
+    {
+        "colours":
+        {
+            "dark_bg": "#000000AA",
+            "normal_border": "#404040",
+            "normal_text": "#FFFFFF"
+        },
+        "misc":
+        {
+            "border_width": "1",
+            "shadow_width": "2",
+            "padding": "10",
+            "text_horiz_alignment": "left",
+            "text_vert_alignment": "center"
+        },
+        "font":
+        {
+            "name": "consolas",
+            "size": "20"
         }
     }
 } 

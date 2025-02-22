@@ -35,6 +35,7 @@ class Renderer:
         tile_manager (TileManager): Tile creation and scaling manager
         entity_renderer (EntityRenderer): Entity visualization manager
         game_area_width (int): Width of the game rendering area
+        vertical_offset (int): Vertical offset for game area (for HUD)
         logger (Logger): Logger instance for debugging
     """
     
@@ -58,6 +59,10 @@ class Renderer:
         
         # Initialize game area (excluding UI elements)
         self.game_area_width = int(width * 2/3)
+        self.vertical_offset = 0  # Initialize vertical offset
+        
+        # Create a separate surface for the game area
+        self.game_surface = pygame.Surface((self.game_area_width, height))
         
         # Initialize rendering components
         self.camera = Camera(0, 0, self.game_area_width, height)
@@ -78,12 +83,129 @@ class Renderer:
         # Force a redraw when camera moves
         if hasattr(self, '_input_handler') and self._input_handler.zone:
             self.render(self._input_handler.zone)
-
+            
     def _on_viewport_updated(self, **kwargs) -> None:
         """Handle viewport update events."""
-        # Update related systems when viewport changes
-        if hasattr(self, 'entity_renderer'):
-            self.entity_renderer.update_tile_size(self.tile_manager.current_tile_size)
+        # Update camera viewport when game area changes
+        self.camera.update_viewport(self.game_area_width, self.height - self.vertical_offset)
+        
+    def set_input_handler(self, input_handler) -> None:
+        """Set the input handler reference."""
+        self._input_handler = input_handler
+        
+    def set_game_area_width(self, width: int) -> None:
+        """
+        Set the width of the game rendering area.
+        
+        Args:
+            width (int): New width in pixels
+        """
+        if width != self.game_area_width:
+            self.game_area_width = width
+            # Create new game surface with updated dimensions
+            self.game_surface = pygame.Surface((width, self.height))
+            # Update camera viewport
+            self.camera.update_viewport(width, self.height - self.vertical_offset)
+            self.logger.debug(f"Game area width set to {width}")
+            
+    def set_vertical_offset(self, offset: int) -> None:
+        """
+        Set the vertical offset for the game area.
+        
+        Args:
+            offset (int): Vertical offset in pixels
+        """
+        self.vertical_offset = offset
+        # Update camera viewport
+        self.camera.update_viewport(self.game_area_width, self.height - offset)
+        
+    def center_on_entity(self, entity: Entity) -> None:
+        """
+        Center the camera on an entity.
+        
+        Args:
+            entity (Entity): The entity to center on
+        """
+        world_x = entity.position.x * self.tile_manager.current_tile_size
+        world_y = entity.position.y * self.tile_manager.current_tile_size
+        self.camera.center_on(world_x, world_y)
+        
+    def render(self, zone: Zone) -> None:
+        """
+        Render the current zone and update the display.
+        
+        Args:
+            zone (Zone): The zone to render
+        """
+        # First render to our separate game surface
+        self.render_without_flip(zone)
+        
+        # Then blit the game surface onto the main screen
+        self.screen.blit(self.game_surface, (0, self.vertical_offset))
+        
+    def render_without_flip(self, zone: Zone) -> None:
+        """
+        Render the current zone without updating the display.
+        
+        Args:
+            zone (Zone): The zone to render
+        """
+        try:
+            # Clear game surface
+            self.game_surface.fill((0, 0, 0))
+            
+            # Get visible area
+            visible_area = self.camera.get_visible_area(self.tile_manager.current_tile_size)
+            
+            # Draw visible tiles
+            self._render_tiles(zone, visible_area)
+            
+            # Draw visible entities
+            self._render_entities(zone, visible_area)
+            
+        except Exception as e:
+            self.logger.error(f"Error rendering frame: {e}", exc_info=True)
+            
+    def _render_tiles(self, zone: Zone, visible_area: pygame.Rect) -> None:
+        """
+        Render visible tiles in the zone.
+        
+        Args:
+            zone (Zone): The zone containing tiles
+            visible_area (pygame.Rect): The visible area in world coordinates
+        """
+        for y in range(visible_area.top, visible_area.bottom + 1):
+            for x in range(visible_area.left, visible_area.right + 1):
+                if zone.is_valid_position(x, y):
+                    tile = zone.get_tile(x, y)
+                    if tile:
+                        world_x = x * self.tile_manager.current_tile_size
+                        world_y = y * self.tile_manager.current_tile_size
+                        screen_x, screen_y = self.camera.world_to_screen(world_x, world_y)
+                        
+                        # Draw tile on game surface
+                        pygame.draw.rect(
+                            self.game_surface,
+                            tile.color,
+                            (screen_x, screen_y, self.tile_manager.current_tile_size, self.tile_manager.current_tile_size)
+                        )
+                        
+    def _render_entities(self, zone: Zone, visible_area: pygame.Rect) -> None:
+        """
+        Render visible entities in the zone.
+        
+        Args:
+            zone (Zone): The zone containing entities
+            visible_area (pygame.Rect): The visible area in world coordinates
+        """
+        # Get visible entities
+        visible_entities = [
+            entity for entity in zone.entities
+            if visible_area.collidepoint(entity.position.x, entity.position.y)
+        ]
+        
+        # Render entities on game surface
+        self.entity_renderer.render_entities(self.game_surface, visible_entities, zone.player)
 
     @property
     def zoom_step(self) -> float:
@@ -136,18 +258,6 @@ class Renderer:
                 pygame.RESIZABLE | pygame.HWSURFACE | pygame.DOUBLEBUF
             )
 
-    def set_game_area_width(self, width: int) -> None:
-        """
-        Set the width of the game rendering area.
-        
-        Args:
-            width (int): New width in pixels
-        """
-        self.game_area_width = width
-        self._manual_game_area_width = True
-        self.camera.update_viewport(width, self.height)
-        self.logger.debug(f"Game area width set to {width}")
-
     def adjust_zoom(self, amount: float) -> None:
         """
         Adjust the zoom level and update related components.
@@ -185,116 +295,6 @@ class Renderer:
                 isinstance(self._input_handler.zone, Zone) and 
                 self._input_handler.zone.player):
                 self.center_on_entity(self._input_handler.zone.player)
-
-    def center_on_entity(self, entity: Entity) -> None:
-        """
-        Center the camera on a specific entity.
-        
-        Args:
-            entity (Entity): The entity to center on
-        """
-        # Only center if we're not in manual camera control mode
-        if not self._input_handler or not self._input_handler.manual_camera_control:
-            # Calculate world coordinates
-            world_x = entity.position.x * self.tile_manager.current_tile_size
-            world_y = entity.position.y * self.tile_manager.current_tile_size
-            
-            # Center camera on entity
-            self.camera.set_position(
-                world_x - self.game_area_width // 2,
-                world_y - self.height // 2
-            )
-            self.logger.debug(f"Centered camera on entity at ({world_x}, {world_y})")
-
-    def render(self, zone: Zone) -> None:
-        """
-        Render the current zone and update the display.
-        
-        Args:
-            zone (Zone): The zone to render
-        """
-        self.render_without_flip(zone)
-        pygame.display.flip()
-
-    def render_without_flip(self, zone: Zone) -> None:
-        """
-        Render the current zone without updating the display.
-        
-        Args:
-            zone (Zone): The zone to render
-        """
-        try:
-            # Create a clip rect that uses the current game area width
-            game_area = pygame.Rect(0, 0, self.game_area_width, self.height)
-            old_clip = self.screen.get_clip()
-            self.screen.set_clip(game_area)
-            
-            # Get visible area
-            visible_area = self.camera.get_visible_area(self.tile_manager.current_tile_size)
-            
-            # Draw visible tiles
-            self._render_tiles(zone, visible_area)
-            
-            # Draw visible entities
-            self._render_entities(zone, visible_area)
-            
-            # Restore original clip rect
-            self.screen.set_clip(old_clip)
-            
-        except Exception as e:
-            self.logger.error(f"Error rendering frame: {e}", exc_info=True)
-
-    def _render_tiles(self, zone: Zone, visible_area: pygame.Rect) -> None:
-        """
-        Render the visible tiles in the zone.
-        
-        Args:
-            zone (Zone): The zone containing the tiles
-            visible_area (pygame.Rect): The visible area in tile coordinates
-        """
-        try:
-            for y in range(visible_area.top, visible_area.bottom + 1):
-                for x in range(visible_area.left, visible_area.right + 1):
-                    tile_type = zone.grid.get_tile(x, y)
-                    tile_surface = self.tile_manager.get_tile_surface(tile_type)
-                    
-                    # Convert tile position to screen coordinates
-                    world_x = x * self.tile_manager.current_tile_size
-                    world_y = y * self.tile_manager.current_tile_size
-                    screen_x, screen_y = self.camera.world_to_screen(world_x, world_y)
-                    
-                    self.screen.blit(tile_surface, (screen_x, screen_y))
-                    
-        except Exception as e:
-            self.logger.error(f"Error rendering tiles: {e}", exc_info=True)
-
-    def _render_entities(self, zone: Zone, visible_area: pygame.Rect) -> None:
-        """
-        Render the visible entities in the zone.
-        
-        Args:
-            zone (Zone): The zone containing the entities
-            visible_area (pygame.Rect): The visible area in tile coordinates
-        """
-        try:
-            visible_entities = zone.get_entities_in_area(visible_area)
-            self.entity_renderer.render_entities(
-                self.screen,
-                visible_entities,
-                highlighted_entity=zone.player if hasattr(zone, 'player') else None
-            )
-        except Exception as e:
-            self.logger.error(f"Error rendering entities: {e}", exc_info=True)
-
-    def set_input_handler(self, input_handler) -> None:
-        """
-        Set the input handler reference for camera control checks.
-        
-        Args:
-            input_handler: The input handler to use
-        """
-        self._input_handler = input_handler
-        self.logger.debug("Input handler reference set")
 
     def cleanup(self) -> None:
         """Clean up the renderer by quitting pygame."""

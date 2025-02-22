@@ -31,15 +31,6 @@ class TileManager:
         logger (Logger): Logger instance for debugging
     """
     
-    # Define colors for different tile types
-    TILE_COLORS = {
-        TileType.WALL: (128, 128, 128),    # Gray
-        TileType.FLOOR: (64, 64, 64),      # Dark Gray
-        TileType.DOOR: (139, 69, 19),      # Brown
-        TileType.WATER: (0, 0, 139),       # Blue
-        TileType.STAIRS: (255, 215, 0),    # Gold
-    }
-    
     def __init__(self, base_tile_size: int = 32):
         """
         Initialize the tile manager with specified base tile size.
@@ -68,8 +59,8 @@ class TileManager:
             Dict[TileType, pygame.Surface]: Mapping of tile types to their base surfaces
         """
         base_tiles = {}
-        for tile_type, color in self.TILE_COLORS.items():
-            base_tiles[tile_type] = self._create_tile(color)
+        for tile_type in TileType:
+            base_tiles[tile_type] = self._create_tile(tile_type.color)
         self.logger.debug(f"Created base tiles for {len(base_tiles)} tile types")
         return base_tiles
 

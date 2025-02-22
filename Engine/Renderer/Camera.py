@@ -100,6 +100,22 @@ class Camera:
         """
         self.move(x - self.viewport.world_x, y - self.viewport.world_y)
 
+    def center_on(self, world_x: int, world_y: int) -> None:
+        """
+        Center the camera viewport on a specific world position.
+        
+        Args:
+            world_x (int): X position in world coordinates to center on
+            world_y (int): Y position in world coordinates to center on
+        """
+        # Calculate the position that will center the viewport on the target
+        target_x = world_x - self.viewport.width // 2
+        target_y = world_y - self.viewport.height // 2
+        
+        # Use set_position to handle boundary constraints
+        self.set_position(target_x, target_y)
+        self.logger.debug(f"Camera centered on world position ({world_x}, {world_y})")
+
     def set_world_bounds(self, bounds: pygame.Rect) -> None:
         """
         Set the world boundaries that constrain camera movement.

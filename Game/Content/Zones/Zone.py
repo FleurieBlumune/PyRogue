@@ -91,6 +91,19 @@ class Zone:
         """Height of the zone in tiles."""
         return self.grid.height
         
+    def is_valid_position(self, x: int, y: int) -> bool:
+        """
+        Check if a position is within the zone boundaries.
+        
+        Args:
+            x (int): X coordinate to check
+            y (int): Y coordinate to check
+            
+        Returns:
+            bool: True if position is within zone boundaries
+        """
+        return 0 <= x < self.width and 0 <= y < self.height
+        
     def is_passable(self, x: int, y: int, ignoring: Entity = None) -> bool:
         """
         Check if a position is passable.
@@ -104,6 +117,19 @@ class Zone:
             bool: True if position is passable
         """
         return self.entity_container.is_passable(x, y, ignoring)
+        
+    def get_tile(self, x: int, y: int):
+        """
+        Get the tile at a specific position.
+        
+        Args:
+            x (int): X coordinate
+            y (int): Y coordinate
+            
+        Returns:
+            TileType: The tile type at the specified position
+        """
+        return self.grid.get_tile(x, y)
         
     # Room management delegation
     def add_room(self, room: Room) -> None:
