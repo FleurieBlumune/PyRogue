@@ -93,10 +93,32 @@ The `CardLoader` utility in `Game/Content/Cards/CardLoader.py` handles loading a
 The game features several specialized menus for card management:
 
 1. **Inventory Menu** (`MenuID.INVENTORY`)
-   - Card list with quantities
-   - Access to deck builder
-   - Visual rarity indicators
-   - Card details view
+   - Implementation Details:
+     - Centered modal window
+     - Dark semi-transparent background overlay
+     - Two main sections:
+       - Left panel (350px): Available cards list
+       - Right panel (350px): Current deck list
+     - Bottom panel (100px): Card details and actions
+     - Controls displayed at top:
+       - ESC: Close inventory
+       - Tab: Switch between panels
+       - Enter: Add/Remove card from deck
+   - Visual Elements:
+     - Card entries show:
+       - Name
+       - Rarity (color-coded)
+       - Quantity owned
+       - If in deck (quantity)
+     - Selected card shows:
+       - Full description
+       - Stats
+       - Usage information
+   - Functionality:
+     - Toggle visibility with 'I' key
+     - ESC to close
+     - Persist changes on close
+     - Auto-save deck modifications
 
 2. **Deck Builder** (`MenuID.DECK_BUILDER`)
    - Available cards list
@@ -214,38 +236,6 @@ The game features several specialized menus for card management:
       - "Target resisted transformation"
       - "Duration: 45s remaining"
 
-  #### Technical Requirements
-  - UI Framework:
-    - Primary: pygame-gui library
-    - Benefits:
-      - Native PyGame integration
-      - JSON-based theming system
-      - Built-in UI containers and layouts
-      - Keyboard navigation support
-      - Text rendering optimization
-    - Custom Components Needed:
-      - Card container element
-      - Deck list view
-      - Status bar
-      - Message log
-  - Theme Configuration:
-    - Dark background (#1a1a1a)
-    - High contrast text (#ffffff)
-    - Rarity colors (muted versions of existing colors)
-    - Custom font definitions:
-      - Interface: "DejaVu Sans Mono" or "Consolas"
-      - Messages: "DejaVu Sans Mono" or "Consolas"
-  - Performance Optimizations:
-    - Text caching for frequently used elements
-    - Minimal animation system:
-      - Simple color transitions
-      - Text effects (flash, fade)
-    - Efficient UI updates
-  - Accessibility Considerations:
-    - High contrast mode
-    - Configurable text size
-    - Color blind friendly indicators
-    - Keyboard-only operation support
 
 ### Future Considerations
 - Additional animal types

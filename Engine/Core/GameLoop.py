@@ -11,6 +11,7 @@ from Game.UI.TitleScreen import TitleScreen
 from Game.UI.Menus.MenuFactory import MenuFactory
 from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
+from Game.UI.Menus.InventoryMenu import InventoryMenu
 from pathlib import Path
 import logging
 import os
@@ -65,6 +66,7 @@ class GameSystemManager:
         self.activity_log: Optional[ActivityLog] = None
         self.hud_menu = None
         self.activity_log_menu = None
+        self.inventory_menu = None
     
     def initialize_game_systems(self, settings: Dict[str, Any]) -> None:
         """
@@ -124,6 +126,7 @@ class GameSystemManager:
         menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
+        self.inventory_menu = InventoryMenu(self.renderer.screen)
         
         # Configure activity log
         self._configure_activity_log()
@@ -341,6 +344,11 @@ class GameLoop:
         Returns:
             bool: True if event was handled by menus
         """
+        if hasattr(self.systems, 'inventory_menu'):
+            if self.systems.inventory_menu.handle_event(event):
+                self.state.needs_render = True
+                return True
+                
         if hasattr(self.systems, 'activity_log_menu'):
             if self.systems.activity_log_menu.handle_input(event):
                 self.state.needs_render = True
@@ -387,6 +395,8 @@ class GameLoop:
                 self.systems.hud_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
             if self.systems.activity_log_menu:
                 self.systems.activity_log_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
+            if self.systems.inventory_menu:
+                self.systems.inventory_menu.draw()
             
             pygame.display.flip()
             self.state.needs_render = False
