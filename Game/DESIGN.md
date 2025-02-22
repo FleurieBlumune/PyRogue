@@ -143,10 +143,109 @@ The game features several specialized menus for card management:
 ## Planned Features
 
 ### Immediate Todo
-- [ ] UI system for card display and management
-- [ ] Implementation of transformation effects on entities
-- [ ] Card acquisition mechanics
-- [ ] Special card combinations and effects
+- UI System for Card Display and Management
+  #### Visual Style Guidelines
+  - **Overall Aesthetic**
+    - Clean, minimalist interface inspired by modern roguelikes
+    - High contrast color scheme for readability
+    - Simple geometric shapes and borders
+    - Text-forward design with minimal decorative elements
+    - Consistent use of space and alignment
+    
+  #### Card Display Components
+  - **Card Visual Template**
+    - Compact, text-based design
+    - Simple border style varying by rarity:
+      - Common: Single line border
+      - Uncommon: Double line border
+      - Rare: Bold border
+      - Legendary: Double bold border
+    - Clear typography hierarchy:
+      - Card name in bold
+      - Stats in monospace font
+      - Description in regular weight
+    - Minimal use of color:
+      - White text on dark background
+      - Rarity colors as subtle highlights only
+    - No card art - focus on clear information display
+
+  #### Management Interfaces
+  - **Hand Display**
+    - Simple horizontal list at bottom of screen
+    - Minimal visual elements:
+      - Card number (1-5) clearly indicated
+      - Current selection highlighted with inverse colors
+      - Stack numbers in brackets [x3]
+    - Status indicators:
+      - Draw pile: Simple counter [D:15]
+      - Discard pile: Simple counter [R:7]
+    
+  - **Deck Builder Interface**
+    - Two-column layout with clear divider
+    - Keyboard-friendly navigation
+    - Simple list format:
+      - One card per line
+      - Quantity shown in brackets
+      - Rarity indicated by subtle color prefix
+    - Stats displayed as simple text footer:
+      - "20/20 cards in deck"
+      - "Common: 12 | Uncommon: 5 | Rare: 2 | Legendary: 1"
+    
+  - **Card Collection View**
+    - Single-column scrollable list
+    - Category headers in inverse colors
+    - Simple filter indicators at top
+    - Keyboard shortcuts shown in brackets [r]arity [t]ype [d]ate
+
+  #### Interaction Systems
+  - **Card Selection**
+    - Keyboard-first navigation
+    - Tab/arrow key movement between sections
+    - Quick-select with number keys
+    - Mouse support as secondary option
+    
+  - **Card Usage**
+    - Clear targeting system:
+      - Highlight potential targets
+      - Show range with simple distance markers
+      - Success chance displayed as percentage
+    - Feedback through text notifications:
+      - "Injector used successfully"
+      - "Target resisted transformation"
+      - "Duration: 45s remaining"
+
+  #### Technical Requirements
+  - UI Framework:
+    - Primary: pygame-gui library
+    - Benefits:
+      - Native PyGame integration
+      - JSON-based theming system
+      - Built-in UI containers and layouts
+      - Keyboard navigation support
+      - Text rendering optimization
+    - Custom Components Needed:
+      - Card container element
+      - Deck list view
+      - Status bar
+      - Message log
+  - Theme Configuration:
+    - Dark background (#1a1a1a)
+    - High contrast text (#ffffff)
+    - Rarity colors (muted versions of existing colors)
+    - Custom font definitions:
+      - Interface: "DejaVu Sans Mono" or "Consolas"
+      - Messages: "DejaVu Sans Mono" or "Consolas"
+  - Performance Optimizations:
+    - Text caching for frequently used elements
+    - Minimal animation system:
+      - Simple color transitions
+      - Text effects (flash, fade)
+    - Efficient UI updates
+  - Accessibility Considerations:
+    - High contrast mode
+    - Configurable text size
+    - Color blind friendly indicators
+    - Keyboard-only operation support
 
 ### Future Considerations
 - Additional animal types
