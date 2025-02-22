@@ -39,24 +39,15 @@ class InventoryMenu:
         self.window_surface = window_surface
         self.config = MENU_CONFIGS[MenuID.INVENTORY]
         self.is_visible = False
-        self.card_loader = CardLoader()
         
-        # Calculate window dimensions
-        self.window_width = 800
-        self.window_height = 600
-        self.window_x = (window_surface.get_width() - self.window_width) // 2
-        self.window_y = (window_surface.get_height() - self.window_height) // 2
+        # Initialize dimensions
+        self.update_dimensions()
         
         # Create surfaces
-        self.window = pygame.Surface((self.window_width, self.window_height), pygame.SRCALPHA)
-        self.left_panel = pygame.Surface((350, 480))
-        self.right_panel = pygame.Surface((350, 480))
-        self.bottom_panel = pygame.Surface((780, 90))
+        self.create_surfaces()
         
-        # Initialize fonts
-        self.title_font = pygame.font.Font(None, 36)
-        self.card_font = pygame.font.Font(None, 24)
-        self.detail_font = pygame.font.Font(None, 20)
+        # Initialize fonts using Segoe UI Symbol
+        self.init_fonts()
         
         # Track selected items
         self.selected_card = None
@@ -67,34 +58,184 @@ class InventoryMenu:
         self.available_cards = []  # Will be populated by refresh_cards
         self.deck_cards = []       # Will be populated by refresh_cards
         
+        # Test Unicode support by checking if the font can render the symbols
+        try:
+            test_surface = self.card_font.render('◆★', True, (255, 255, 255))
+            test_rect = test_surface.get_rect()
+            self.unicode_supported = test_rect.width > 0
+        except:
+            self.unicode_supported = False
+        
+        if not self.unicode_supported:
+            print("Unicode not supported, falling back to ASCII symbols")
+            self.RARITY_SYMBOLS = {
+                'COMMON': '*',      # Asterisk
+                'UNCOMMON': '+',    # Plus
+                'RARE': '#',        # Hash
+                'LEGENDARY': '@'    # Star
+            }
+
+    def update_dimensions(self):
+        """Update menu dimensions based on window size."""
+        screen_width = self.window_surface.get_width()
+        screen_height = self.window_surface.get_height()
+        
+        # Calculate proportional sizes (80% of screen width, 90% of screen height)
+        self.window_width = min(int(screen_width * 0.8), 1200)  # Cap at 1200px
+        self.window_height = min(int(screen_height * 0.9), 800)  # Cap at 800px
+        
+        # Center the window
+        self.window_x = (screen_width - self.window_width) // 2
+        self.window_y = (screen_height - self.window_height) // 2
+        
+        # Calculate panel sizes
+        self.panel_width = (self.window_width - 30) // 2  # 15px padding on sides
+        self.panel_height = self.window_height - 120  # Space for bottom panel
+        self.bottom_panel_height = 90
+
+    def create_surfaces(self):
+        """Create or recreate all surfaces with current dimensions."""
+        self.window = pygame.Surface((self.window_width, self.window_height), pygame.SRCALPHA)
+        self.left_panel = pygame.Surface((self.panel_width, self.panel_height))
+        self.right_panel = pygame.Surface((self.panel_width, self.panel_height))
+        self.bottom_panel = pygame.Surface((self.window_width - 20, self.bottom_panel_height))
+
+    def init_fonts(self):
+        """Initialize fonts with appropriate sizes based on window dimensions."""
+        font_path = "Game/Content/Assets/Fonts/segoeuisymbol.ttf"
+        try:
+            base_size = min(36, max(24, self.window_width // 30))  # Scale with window size
+            self.title_font = pygame.font.Font(font_path, base_size)
+            self.card_font = pygame.font.Font(font_path, int(base_size * 0.7))
+            self.detail_font = pygame.font.Font(font_path, int(base_size * 0.6))
+            
+            # Set up rarity symbols
+            self.RARITY_SYMBOLS = {
+                'COMMON': '◆',      # Diamond
+                'UNCOMMON': '◈',    # Hollow diamond
+                'RARE': '❖',        # Black diamond minus white
+                'LEGENDARY': '★'    # Star
+            }
+        except:
+            print("Failed to load Segoe UI Symbol font, falling back to default")
+            self.title_font = pygame.font.Font(None, base_size)
+            self.card_font = pygame.font.Font(None, int(base_size * 0.7))
+            self.detail_font = pygame.font.Font(None, int(base_size * 0.6))
+            
+            self.RARITY_SYMBOLS = {
+                'COMMON': '*',      # Asterisk
+                'UNCOMMON': '+',    # Plus
+                'RARE': '#',        # Hash
+                'LEGENDARY': '@'    # Star
+            }
+
+    def handle_resize(self):
+        """Handle window resize event."""
+        self.update_dimensions()
+        self.create_surfaces()
+        self.init_fonts()
+        self.refresh_cards()
+
     def draw(self):
         """Draw the inventory menu if visible."""
         if not self.is_visible:
             return
             
-        # Draw semi-transparent background
-        self.window.fill(self.BACKGROUND_COLOR)
+        # Clear the window surface
+        self.window.fill((0, 0, 0, 0))  # Clear with transparency
         
-        # Draw panels
-        self._draw_panel(self.left_panel, (10, 10), "Available Cards")
-        self._draw_panel(self.right_panel, (440, 10), "Current Deck")
-        self._draw_panel(self.bottom_panel, (10, 500), "Card Details")
+        # Draw left panel (Available Cards)
+        self.left_panel.fill(self.PANEL_COLOR)
+        pygame.draw.rect(self.left_panel, self.BORDER_COLOR, (0, 0, self.panel_width, self.panel_height), 2)
+        title = self.title_font.render("Available Cards", True, self.TEXT_COLOR)
+        self.left_panel.blit(title, (10, 10))
         
-        # Draw to main surface
+        # Draw right panel (Current Deck)
+        self.right_panel.fill(self.PANEL_COLOR)
+        pygame.draw.rect(self.right_panel, self.BORDER_COLOR, (0, 0, self.panel_width, self.panel_height), 2)
+        title = self.title_font.render(f"Current Deck ({len(self.deck_cards)}/20)", True, self.TEXT_COLOR)
+        self.right_panel.blit(title, (10, 10))
+        
+        # Draw bottom panel (Card Details)
+        self.bottom_panel.fill(self.PANEL_COLOR)
+        pygame.draw.rect(self.bottom_panel, self.BORDER_COLOR, (0, 0, self.window_width - 20, self.bottom_panel_height), 2)
+        
+        # Draw cards in left panel
+        y_offset = 50
+        for i, card in enumerate(self.available_cards[self.scroll_offset['left']:]):
+            if y_offset >= self.panel_height - 30:  # Leave space at bottom
+                break
+                
+            # Draw selection highlight
+            if self.selected_panel == 'left' and i + self.scroll_offset['left'] == self.selected_card:
+                pygame.draw.rect(self.left_panel, self.SELECTED_COLOR, 
+                               (5, y_offset, self.panel_width - 10, 25))
+            
+            # Draw rarity symbol and name
+            rarity_color = self.RARITY_COLORS.get(card.rarity.name, self.TEXT_COLOR)
+            rarity_symbol = self.card_font.render(self.RARITY_SYMBOLS[card.rarity.name], True, rarity_color)
+            name = self.card_font.render(f" {card.name}", True, self.TEXT_COLOR)
+            
+            self.left_panel.blit(rarity_symbol, (10, y_offset))
+            self.left_panel.blit(name, (30, y_offset))
+            
+            # Draw uses if limited
+            if card.max_uses > 0:
+                uses_text = f"{card.current_uses}/{card.max_uses}"
+                uses = self.card_font.render(uses_text, True, self.TEXT_COLOR)
+                uses_rect = uses.get_rect(right=self.panel_width - 10, top=y_offset)
+                self.left_panel.blit(uses, uses_rect)
+            
+            y_offset += 30
+        
+        # Draw cards in right panel
+        y_offset = 50
+        for i, card in enumerate(self.deck_cards[self.scroll_offset['right']:]):
+            if y_offset >= self.panel_height - 30:
+                break
+                
+            if self.selected_panel == 'right' and i + self.scroll_offset['right'] == self.selected_card:
+                pygame.draw.rect(self.right_panel, self.SELECTED_COLOR, 
+                               (5, y_offset, self.panel_width - 10, 25))
+            
+            rarity_color = self.RARITY_COLORS.get(card.rarity.name, self.TEXT_COLOR)
+            rarity_symbol = self.card_font.render(self.RARITY_SYMBOLS[card.rarity.name], True, rarity_color)
+            name = self.card_font.render(f" {card.name}", True, self.TEXT_COLOR)
+            
+            self.right_panel.blit(rarity_symbol, (10, y_offset))
+            self.right_panel.blit(name, (30, y_offset))
+            
+            if card.max_uses > 0:
+                uses_text = f"{card.current_uses}/{card.max_uses}"
+                uses = self.card_font.render(uses_text, True, self.TEXT_COLOR)
+                uses_rect = uses.get_rect(right=self.panel_width - 10, top=y_offset)
+                self.right_panel.blit(uses, uses_rect)
+            
+            y_offset += 30
+        
+        # Draw selected card details in bottom panel
+        if self.selected_card is not None:
+            cards = self.available_cards if self.selected_panel == 'left' else self.deck_cards
+            if 0 <= self.selected_card < len(cards):
+                card = cards[self.selected_card]
+                name = self.detail_font.render(card.name, True, self.TEXT_COLOR)
+                desc = self.detail_font.render(card.description, True, self.TEXT_COLOR)
+                stats = self.detail_font.render(
+                    f"Success: {int(card.effect.success_rate * 100)}% | Duration: {'Permanent' if card.effect.duration == -1 else f'{int(card.effect.duration)}s'}", 
+                    True, self.TEXT_COLOR
+                )
+                
+                self.bottom_panel.blit(name, (10, 10))
+                self.bottom_panel.blit(desc, (10, 35))
+                self.bottom_panel.blit(stats, (10, 60))
+        
+        # Blit all panels to window
+        self.window.blit(self.left_panel, (10, 10))
+        self.window.blit(self.right_panel, (self.panel_width + 20, 10))
+        self.window.blit(self.bottom_panel, (10, self.window_height - self.bottom_panel_height - 10))
+        
+        # Blit window to screen at centered position
         self.window_surface.blit(self.window, (self.window_x, self.window_y))
-        
-    def _draw_panel(self, panel: pygame.Surface, pos: tuple, title: str):
-        """Draw a panel with title and border."""
-        # Fill panel background
-        panel.fill(self.PANEL_COLOR)
-        pygame.draw.rect(panel, self.BORDER_COLOR, panel.get_rect(), 2)
-        
-        # Draw title
-        title_surface = self.title_font.render(title, True, self.TEXT_COLOR)
-        panel.blit(title_surface, (10, 5))
-        
-        # Blit panel to window
-        self.window.blit(panel, pos)
         
     def show(self):
         """Show the inventory menu."""
@@ -114,10 +255,23 @@ class InventoryMenu:
             
     def refresh_cards(self):
         """Refresh the card displays in both panels."""
-        # TODO: Load actual card data from CardLoader
-        pass
+        try:
+            # Load all available cards
+            if not self.available_cards:  # Only load if not already loaded
+                print("Loading cards from CSV...")  # Debug
+                self.available_cards = list(CardLoader.load_cards().values())  # Use static method
+                print(f"Loaded {len(self.available_cards)} cards")  # Debug
+                # Set initial selection to first card if available
+                if self.available_cards and self.selected_card is None:
+                    self.selected_card = 0
+                    print(f"Set initial selection to: {self.available_cards[0].name}")  # Debug
+            
+            print(f"Drawing {len(self.available_cards)} available cards")  # Debug
+            
+        except Exception as e:
+            print(f"Error refreshing cards: {e}")  # Basic error handling for now
         
-    def handle_event(self, event: pygame.event.Event):
+    def handle_event(self, event: pygame.event.Event) -> bool:
         """
         Handle pygame events for the inventory menu.
         
@@ -125,56 +279,69 @@ class InventoryMenu:
             event: The pygame event to handle
             
         Returns:
-            bool: True if the event was handled, False otherwise
+            bool: True if event was handled, False otherwise
         """
+        # If menu is not visible, only handle I key to show it
         if not self.is_visible:
             if event.type == pygame.KEYDOWN and event.key == pygame.K_i:
-                self.toggle()
+                self.show()
                 return True
             return False
-            
+        
+        # Handle window resize
+        if event.type == pygame.VIDEORESIZE:
+            self.handle_resize()
+            return True
+        
+        # Handle keyboard events when menu is visible
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
+            if event.key == pygame.K_ESCAPE or event.key == pygame.K_i:
                 self.hide()
                 return True
-            elif event.key == pygame.K_TAB:
-                self.selected_panel = 'right' if self.selected_panel == 'left' else 'left'
+            elif event.key == pygame.K_LEFT:
+                self.selected_panel = 'left'
+                if self.selected_card is None and self.available_cards:
+                    self.selected_card = 0
                 return True
-            elif event.key in (pygame.K_UP, pygame.K_DOWN):
-                self._handle_vertical_navigation(event.key)
+            elif event.key == pygame.K_RIGHT:
+                self.selected_panel = 'right'
+                if self.selected_card is None and self.deck_cards:
+                    self.selected_card = 0
+                return True
+            elif event.key == pygame.K_UP:
+                cards = self.available_cards if self.selected_panel == 'left' else self.deck_cards
+                if cards and self.selected_card is not None and self.selected_card > 0:
+                    self.selected_card -= 1
+                    # Adjust scroll if needed
+                    if self.selected_card < self.scroll_offset[self.selected_panel]:
+                        self.scroll_offset[self.selected_panel] = self.selected_card
+                return True
+            elif event.key == pygame.K_DOWN:
+                cards = self.available_cards if self.selected_panel == 'left' else self.deck_cards
+                if not cards:
+                    return True
+                if self.selected_card is None:
+                    self.selected_card = 0
+                elif self.selected_card < len(cards) - 1:
+                    self.selected_card += 1
+                    # Adjust scroll if needed
+                    visible_cards = (self.panel_height - 50) // 30
+                    if self.selected_card >= self.scroll_offset[self.selected_panel] + visible_cards:
+                        self.scroll_offset[self.selected_panel] = self.selected_card - visible_cards + 1
                 return True
             elif event.key == pygame.K_RETURN:
-                self._handle_card_action()
-                return True
+                if self.selected_card is not None:
+                    # Handle card selection/transfer between panels
+                    if self.selected_panel == 'left' and len(self.deck_cards) < 20:
+                        card = self.available_cards[self.selected_card]
+                        # Check if card index exists in deck
+                        card_exists = any(c.id == card.id for c in self.deck_cards)
+                        if not card_exists:
+                            self.deck_cards.append(card)
+                    elif self.selected_panel == 'right' and self.selected_card < len(self.deck_cards):
+                        self.deck_cards.pop(self.selected_card)
+                        if self.selected_card >= len(self.deck_cards):
+                            self.selected_card = max(0, len(self.deck_cards) - 1) if self.deck_cards else None
+                    return True
                 
-        return False
-        
-    def _handle_vertical_navigation(self, key):
-        """Handle up/down navigation in card lists."""
-        cards = self.available_cards if self.selected_panel == 'left' else self.deck_cards
-        if not cards:
-            return
-            
-        current_index = cards.index(self.selected_card) if self.selected_card in cards else -1
-        if key == pygame.K_UP:
-            current_index = max(0, current_index - 1)
-        else:  # pygame.K_DOWN
-            current_index = min(len(cards) - 1, current_index + 1)
-        
-        self.selected_card = cards[current_index]
-        
-    def _handle_card_action(self):
-        """Handle card selection/deselection when Enter is pressed."""
-        if not self.selected_card:
-            return
-            
-        if self.selected_panel == 'left':
-            # Add card to deck if not at maximum
-            if len(self.deck_cards) < 20:  # Maximum deck size
-                self.deck_cards.append(self.selected_card)
-        else:
-            # Remove card from deck
-            if self.selected_card in self.deck_cards:
-                self.deck_cards.remove(self.selected_card)
-                
-        self.refresh_cards() 
+        return False 

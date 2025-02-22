@@ -28,7 +28,7 @@ class CardLoader:
     """
     
     @staticmethod
-    def load_cards(csv_path: str = "Data/CSV/cards.csv") -> Dict[str, Card]:
+    def load_cards(csv_path: str = "Game/Content/Data/CSV/cards.csv") -> Dict[str, Card]:
         """
         Load all cards from the specified CSV file.
         
@@ -44,15 +44,19 @@ class CardLoader:
         cards: Dict[str, Card] = {}
         
         try:
+            print(f"Attempting to load cards from: {csv_path}")  # Debug
             csv_file = Path(csv_path)
             if not csv_file.exists():
+                print(f"File not found at: {csv_file.absolute()}")  # Debug
                 raise CardLoadError(f"Card data file not found: {csv_path}")
                 
+            print(f"Found CSV file at: {csv_file.absolute()}")  # Debug
             with open(csv_file, 'r', encoding='utf-8') as f:
                 reader = csv.DictReader(f)
                 
                 for row in reader:
                     try:
+                        print(f"Processing card: {row.get('id', 'Unknown')}")  # Debug
                         # Parse the side effects list
                         side_effects = [
                             effect.strip() 
@@ -80,13 +84,17 @@ class CardLoader:
                         )
                         
                         cards[card.id] = card
+                        print(f"Successfully loaded card: {card.id}")  # Debug
                         
                     except (KeyError, ValueError) as e:
+                        print(f"Error loading card {row.get('id', 'Unknown')}: {e}")  # Debug
                         raise CardLoadError(f"Error parsing card data: {row.get('id', 'Unknown')}: {str(e)}")
                         
         except Exception as e:
+            print(f"Failed to load cards: {e}")  # Debug
             raise CardLoadError(f"Failed to load cards: {str(e)}")
             
+        print(f"Successfully loaded {len(cards)} cards")  # Debug
         return cards
         
     @staticmethod
