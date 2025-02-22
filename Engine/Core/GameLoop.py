@@ -12,6 +12,7 @@ from Game.UI.Menus.MenuFactory import MenuFactory
 from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
 from Game.UI.Menus.InventoryMenu import InventoryMenu
+from Game.UI.Menus.PauseMenu import PauseMenu
 from pathlib import Path
 import logging
 import os
@@ -67,6 +68,7 @@ class GameSystemManager:
         self.hud_menu = None
         self.activity_log_menu = None
         self.inventory_menu = None
+        self.pause_menu = None
     
     def initialize_game_systems(self, settings: Dict[str, Any]) -> None:
         """
@@ -127,6 +129,7 @@ class GameSystemManager:
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
         self.inventory_menu = InventoryMenu(self.renderer.screen)
+        self.pause_menu = PauseMenu(self.renderer.screen)
         
         # Configure activity log
         self._configure_activity_log()
@@ -344,11 +347,28 @@ class GameLoop:
         Returns:
             bool: True if event was handled by menus
         """
+        # Handle inventory menu first if it's visible
         if hasattr(self.systems, 'inventory_menu'):
             if self.systems.inventory_menu.handle_event(event):
                 self.state.needs_render = True
                 return True
+        
+        # Handle pause menu only if no other menu is visible
+        if hasattr(self.systems, 'pause_menu'):
+            # Only check for other menus when trying to open pause menu
+            any_menu_visible = (
+                (hasattr(self.systems, 'inventory_menu') and self.systems.inventory_menu.is_visible)
+            )
+            
+            if not any_menu_visible or self.systems.pause_menu.is_visible:
+                handled, action = self.systems.pause_menu.handle_event(event)
+                if handled:
+                    if action == "QUIT":
+                        self.state.running = False
+                    self.state.needs_render = True
+                    return True
                 
+        # Handle other menus
         if hasattr(self.systems, 'activity_log_menu'):
             if self.systems.activity_log_menu.handle_input(event):
                 self.state.needs_render = True
@@ -397,6 +417,8 @@ class GameLoop:
                 self.systems.activity_log_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
             if self.systems.inventory_menu:
                 self.systems.inventory_menu.draw()
+            if self.systems.pause_menu:
+                self.systems.pause_menu.draw()
             
             pygame.display.flip()
             self.state.needs_render = False
