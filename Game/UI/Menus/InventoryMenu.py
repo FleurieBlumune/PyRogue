@@ -1,12 +1,15 @@
 """
 Inventory menu implementation for managing cards and deck building.
-Uses pure Pygame for rendering.
 """
 
 import pygame
+import logging
 from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuItemType
 from Game.Content.Cards.CardLoader import CardLoader
+from Game.Content.Cards.InventoryManager import InventoryManager
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
+
+logger = logging.getLogger(__name__)
 
 class InventoryMenu:
     """
@@ -54,6 +57,9 @@ class InventoryMenu:
         self.selected_panel = 'left'  # 'left' or 'right'
         self.scroll_offset = {'left': 0, 'right': 0}
         
+        # Initialize inventory manager
+        self.inventory = InventoryManager()
+        
         # Card data
         self.available_cards = []  # Will be populated by refresh_cards
         self.deck_cards = []       # Will be populated by refresh_cards
@@ -67,7 +73,7 @@ class InventoryMenu:
             self.unicode_supported = False
         
         if not self.unicode_supported:
-            print("Unicode not supported, falling back to ASCII symbols")
+            logger.debug("Unicode not supported, falling back to ASCII symbols")
             self.RARITY_SYMBOLS = {
                 'COMMON': '*',      # Asterisk
                 'UNCOMMON': '+',    # Plus
@@ -117,7 +123,7 @@ class InventoryMenu:
                 'LEGENDARY': '★'    # Star
             }
         except:
-            print("Failed to load Segoe UI Symbol font, falling back to default")
+            logger.debug("Failed to load Segoe UI Symbol font, falling back to default")
             self.title_font = pygame.font.Font(None, base_size)
             self.card_font = pygame.font.Font(None, int(base_size * 0.7))
             self.detail_font = pygame.font.Font(None, int(base_size * 0.6))
@@ -174,7 +180,14 @@ class InventoryMenu:
             # Draw rarity symbol and name
             rarity_color = self.RARITY_COLORS.get(card.rarity.name, self.TEXT_COLOR)
             rarity_symbol = self.card_font.render(self.RARITY_SYMBOLS[card.rarity.name], True, rarity_color)
-            name = self.card_font.render(f" {card.name}", True, self.TEXT_COLOR)
+            
+            # Calculate remaining quantity
+            total_quantity = self.inventory.cards[card.id].quantity
+            used_in_deck = sum(1 for c in self.deck_cards if c.id == card.id)
+            remaining = total_quantity - used_in_deck
+            
+            # Show name with quantity
+            name = self.card_font.render(f" {card.name} ({remaining}/{total_quantity})", True, self.TEXT_COLOR)
             
             self.left_panel.blit(rarity_symbol, (10, y_offset))
             self.left_panel.blit(name, (30, y_offset))
@@ -256,20 +269,35 @@ class InventoryMenu:
     def refresh_cards(self):
         """Refresh the card displays in both panels."""
         try:
-            # Load all available cards
-            if not self.available_cards:  # Only load if not already loaded
-                print("Loading cards from CSV...")  # Debug
-                self.available_cards = list(CardLoader.load_cards().values())  # Use static method
-                print(f"Loaded {len(self.available_cards)} cards")  # Debug
-                # Set initial selection to first card if available
-                if self.available_cards and self.selected_card is None:
-                    self.selected_card = 0
-                    print(f"Set initial selection to: {self.available_cards[0].name}")  # Debug
+            logger.debug("Loading cards from inventory...")  # Debug
+            # Always reload available cards to get current quantities
+            self.available_cards = [
+                stack.card for stack in self.inventory.cards.values()
+            ]
+            logger.debug(f"Loaded {len(self.available_cards)} cards")  # Debug
             
-            print(f"Drawing {len(self.available_cards)} available cards")  # Debug
+            # Set initial selection to first card if none selected
+            if self.available_cards and self.selected_card is None:
+                self.selected_card = 0
+                logger.debug(f"Set initial selection to: {self.available_cards[0].name}")  # Debug
+            
+            # Validate deck cards against inventory
+            valid_deck_cards = []
+            for card in self.deck_cards:
+                if card.id in self.inventory.cards:
+                    # Count how many of this card are already in the valid deck
+                    deck_count = sum(1 for c in valid_deck_cards if c.id == card.id)
+                    # Only keep the card if we haven't exceeded the inventory quantity
+                    if deck_count < self.inventory.cards[card.id].quantity:
+                        valid_deck_cards.append(card)
+            
+            # Update deck with valid cards
+            self.deck_cards = valid_deck_cards
+            
+            logging.debug(f"Drawing {len(self.available_cards)} available cards")  # Debug
             
         except Exception as e:
-            print(f"Error refreshing cards: {e}")  # Basic error handling for now
+            logger.debug(f"Error refreshing cards: {e}")  # Basic error handling for now
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """
@@ -334,9 +362,10 @@ class InventoryMenu:
                     # Handle card selection/transfer between panels
                     if self.selected_panel == 'left' and len(self.deck_cards) < 20:
                         card = self.available_cards[self.selected_card]
-                        # Check if card index exists in deck
-                        card_exists = any(c.id == card.id for c in self.deck_cards)
-                        if not card_exists:
+                        # Check if we have enough copies of this card
+                        card_stack = self.inventory.cards[card.id]
+                        deck_count = sum(1 for c in self.deck_cards if c.id == card.id)
+                        if deck_count < card_stack.quantity:
                             self.deck_cards.append(card)
                     elif self.selected_panel == 'right' and self.selected_card < len(self.deck_cards):
                         self.deck_cards.pop(self.selected_card)

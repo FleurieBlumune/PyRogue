@@ -2,9 +2,12 @@
 Manages the player's card inventory system, handling card collection, organization, and usage.
 """
 
+import csv
+from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, field
 from . import Card, CardRarity
+from .CardLoader import CardLoader, CardLoadError
 
 @dataclass
 class CardStack:
@@ -21,14 +24,81 @@ class InventoryManager:
     - Organizing cards by type/rarity
     - Managing card quantities
     - Card usage and effects
+    - Saving/loading inventory state
     """
     
-    def __init__(self, max_unique_cards: int = 30):
-        self.max_unique_cards = max_unique_cards
-        self.cards: Dict[str, CardStack] = {}  # card_id -> CardStack
-        self._active_cards: List[str] = []  # List of card IDs in active slots
-        self.max_active_cards = 5  # Number of cards that can be "equipped" at once
+    def __init__(self, inventory_path: str = "Game/Content/Data/CSV/player_inventory.csv"):
+        self.inventory_path = Path(inventory_path)
+        self.cards: Dict[int, CardStack] = {}  # Changed to use integer keys
+        self._active_cards: List[int] = []  # Changed to use integer IDs
+        self.max_active_cards = 5
         
+        # Load card templates first
+        self.card_templates = CardLoader.load_cards()
+        
+        # Then try to load player inventory
+        self.load_inventory()
+    
+    def save_inventory(self) -> None:
+        """
+        Save the current inventory state to CSV.
+        
+        The CSV will contain:
+        - card_id: The unique integer identifier of the card
+        - quantity: How many of this card the player has
+        - current_uses: How many times the card has been used
+        """
+        try:
+            # Ensure directory exists
+            self.inventory_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            with open(self.inventory_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=['card_id', 'quantity', 'current_uses'])
+                writer.writeheader()
+                
+                for card_id, stack in self.cards.items():
+                    writer.writerow({
+                        'card_id': card_id,
+                        'quantity': stack.quantity,
+                        'current_uses': stack.card.current_uses
+                    })
+        except Exception as e:
+            raise CardLoadError(f"Failed to save inventory: {str(e)}")
+    
+    def load_inventory(self) -> None:
+        """
+        Load the inventory state from CSV.
+        If the file doesn't exist, start with an empty inventory.
+        """
+        self.cards.clear()
+        
+        if not self.inventory_path.exists():
+            return
+            
+        try:
+            with open(self.inventory_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    card_id = int(row['card_id'])  # Convert to int
+                    if card_id in self.card_templates:
+                        # Create a copy of the template card
+                        card = self.card_templates[card_id]
+                        card_copy = Card(
+                            id=card.id,
+                            name=card.name,
+                            description=card.description,
+                            rarity=card.rarity,
+                            effect=card.effect,
+                            max_uses=card.max_uses,
+                            current_uses=int(row['current_uses'])
+                        )
+                        self.cards[card_id] = CardStack(
+                            card=card_copy,
+                            quantity=int(row['quantity'])
+                        )
+        except Exception as e:
+            raise CardLoadError(f"Failed to load inventory: {str(e)}")
+    
     @property
     def active_cards(self) -> List[Card]:
         """Get the currently active/equipped cards."""
@@ -43,19 +113,18 @@ class InventoryManager:
             quantity: Number of copies to add
             
         Returns:
-            bool: True if successfully added, False if inventory is full
+            bool: True if successfully added
         """
         if card.id in self.cards:
             self.cards[card.id].quantity += quantity
+            self.save_inventory()
             return True
             
-        if len(self.cards) >= self.max_unique_cards:
-            return False
-            
         self.cards[card.id] = CardStack(card, quantity)
+        self.save_inventory()
         return True
         
-    def remove_card(self, card_id: str, quantity: int = 1) -> bool:
+    def remove_card(self, card_id: int, quantity: int = 1) -> bool:  # Changed parameter type to int
         """
         Remove card(s) from the inventory.
         
@@ -80,9 +149,10 @@ class InventoryManager:
             if card_id in self._active_cards:
                 self._active_cards.remove(card_id)
                 
+        self.save_inventory()
         return True
         
-    def set_active(self, card_id: str) -> bool:
+    def set_active(self, card_id: int) -> bool:  # Changed parameter type to int
         """
         Set a card as active/equipped.
         
@@ -104,7 +174,7 @@ class InventoryManager:
         self._active_cards.append(card_id)
         return True
         
-    def deactivate(self, card_id: str) -> bool:
+    def deactivate(self, card_id: int) -> bool:  # Changed parameter type to int
         """
         Remove a card from active slots.
         
@@ -124,7 +194,7 @@ class InventoryManager:
         return [stack for stack in self.cards.values() 
                 if stack.card.rarity == rarity]
         
-    def use_card(self, card_id: str) -> bool:
+    def use_card(self, card_id: int) -> bool:  # Changed parameter type to int
         """
         Attempt to use a card from the inventory.
         

@@ -1,8 +1,11 @@
 id,name,description,rarity,transformation,duration,success_rate,side_effects,max_uses
-basic_rat,"Basic Rat Serum","A simple serum that transforms the target into a rat.",COMMON,RAT,-1,0.75,"mild_confusion",3
-basic_cat,"Basic Cat Serum","A common serum for feline transformation.",COMMON,CAT,-1,0.75,"drowsiness",3
-basic_dog,"Basic Dog Serum","Standard canine transformation formula.",COMMON,DOG,-1,0.75,"increased_appetite",3
-adv_wolf,"Advanced Wolf Serum","A more refined formula for wolf transformation.",UNCOMMON,WOLF,-1,0.9,"aggression",2
-adv_bear,"Advanced Bear Serum","A powerful ursine transformation serum.",UNCOMMON,BEAR,-1,0.9,"hibernation_urge",2
-exp_rat,"Experimental Rat Serum","Unstable but effective rat transformation.",RARE,RAT,300,1.0,"random_squeaking,fur_growth",1
-master_wolf,"Masterwork Wolf Serum","Perfect wolf transformation formula.",LEGENDARY,WOLF,-1,1.0,"none",5 
+1,Wolf Serum,A basic serum that transforms the target into a wolf,COMMON,WOLF,-1,0.75,"Increased aggression",3
+2,Bear Serum,A powerful serum that transforms the target into a bear,UNCOMMON,BEAR,-1,0.8,"Increased strength,Drowsiness",2
+3,Rabbit Serum,A quick-acting serum that transforms the target into a rabbit,COMMON,RABBIT,-1,0.9,"Increased jumpiness",3
+4,Rat Serum,A simple serum that transforms the target into a rat,COMMON,RAT,-1,0.75,"Mild confusion",3
+5,Cat Serum,A common serum for feline transformation,COMMON,CAT,-1,0.75,"Drowsiness",3
+6,Dog Serum,Standard canine transformation formula,COMMON,DOG,-1,0.75,"Increased appetite",3
+7,Advanced Wolf Serum,A more refined formula for wolf transformation,UNCOMMON,WOLF,-1,0.9,"Aggression",2
+8,Advanced Bear Serum,A powerful ursine transformation serum,UNCOMMON,BEAR,-1,0.9,"Hibernation urge",2
+9,Experimental Rat Serum,Unstable but effective rat transformation,RARE,RAT,300,1.0,"Random squeaking,Fur growth",1
+10,Masterwork Wolf Serum,Perfect wolf transformation formula,LEGENDARY,WOLF,-1,1.0,"None",5 

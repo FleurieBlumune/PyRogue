@@ -21,7 +21,7 @@ class DeckState:
     draw_pile: List[Card] = field(default_factory=list)
     discard_pile: List[Card] = field(default_factory=list)
     hand: List[Card] = field(default_factory=list)
-    deck_list: Set[str] = field(default_factory=set)  # Set of card IDs that make up the deck
+    deck_list: Set[int] = field(default_factory=set)  # Set of integer card IDs that make up the deck
 
 class DeckError(Exception):
     """Raised when there is an error with deck operations."""
@@ -52,12 +52,12 @@ class DeckManager:
         self.inventory = inventory
         self.state = DeckState()
         
-    def build_deck(self, card_ids: List[str]) -> None:
+    def build_deck(self, card_ids: List[int]) -> None:
         """
         Build a new deck from the specified card IDs.
         
         Args:
-            card_ids: List of card IDs to include in the deck
+            card_ids: List of integer card IDs to include in the deck
             
         Raises:
             DeckError: If the deck construction fails

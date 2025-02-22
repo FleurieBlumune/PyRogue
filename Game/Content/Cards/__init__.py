@@ -15,12 +15,13 @@ class CardRarity(Enum):
     LEGENDARY = auto()
 
 class AnimalType(Enum):
-    """Defines the possible animal transformations."""
+    """Defines the available animal transformations."""
     RAT = auto()
     CAT = auto()
     DOG = auto()
     WOLF = auto()
     BEAR = auto()
+    RABBIT = auto()
     # More animals can be added as needed
 
 @dataclass
@@ -34,8 +35,8 @@ class CardEffect:
 @dataclass
 class Card:
     """Base class for all cards in the game."""
-    id: str
-    name: str
+    id: int  # Unique integer identifier
+    name: str  # Display name of the card
     description: str
     rarity: CardRarity
     effect: CardEffect

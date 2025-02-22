@@ -16,7 +16,7 @@ class CardLoader:
     Utility class for loading card definitions from CSV files and creating Card instances.
     
     The CSV file should have the following columns:
-    - id: Unique identifier for the card
+    - id: Unique integer identifier for the card
     - name: Display name of the card
     - description: Card description
     - rarity: One of COMMON, UNCOMMON, RARE, LEGENDARY
@@ -28,7 +28,7 @@ class CardLoader:
     """
     
     @staticmethod
-    def load_cards(csv_path: str = "Game/Content/Data/CSV/cards.csv") -> Dict[str, Card]:
+    def load_cards(csv_path: str = "Game/Content/Data/CSV/cards.csv") -> Dict[int, Card]:
         """
         Load all cards from the specified CSV file.
         
@@ -36,12 +36,12 @@ class CardLoader:
             csv_path: Path to the CSV file containing card definitions
             
         Returns:
-            Dict[str, Card]: Dictionary mapping card IDs to Card instances
+            Dict[int, Card]: Dictionary mapping card IDs to Card instances
             
         Raises:
             CardLoadError: If there is an error loading the cards
         """
-        cards: Dict[str, Card] = {}
+        cards: Dict[int, Card] = {}
         
         try:
             print(f"Attempting to load cards from: {csv_path}")  # Debug
@@ -74,7 +74,7 @@ class CardLoader:
                         
                         # Create the card
                         card = Card(
-                            id=row['id'],
+                            id=int(row['id']),  # Convert ID to integer
                             name=row['name'],
                             description=row['description'],
                             rarity=CardRarity[row['rarity']],
@@ -84,7 +84,7 @@ class CardLoader:
                         )
                         
                         cards[card.id] = card
-                        print(f"Successfully loaded card: {card.id}")  # Debug
+                        print(f"Successfully loaded card: {card.name} (ID: {card.id})")  # Debug
                         
                     except (KeyError, ValueError) as e:
                         print(f"Error loading card {row.get('id', 'Unknown')}: {e}")  # Debug
