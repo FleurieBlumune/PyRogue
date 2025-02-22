@@ -7,7 +7,6 @@ import pygame
 from Game.Systems.Turn.TurnManager import TurnManager
 from Engine.Core.Utils.Position import Position
 from Engine.Core.Events import EventManager, GameEventType
-from Game.UI.Menus.MessageLog import ActivityLog
 
 class InputHandler:
     """

@@ -1,20 +1,7 @@
 """
-UI system components.
-
-This package contains:
-- Menu system
-- UI base components
-- UI utilities
+UI system module.
 """
 
-from .MenuSystem.Menu import Menu
-from .MenuSystem.MenuItem import MenuItem
-from .MenuSystem.MenuTypes import MenuID, MenuState, MenuItemType
+from .MenuSystem import MenuState
 
-__all__ = [
-    'Menu',
-    'MenuItem',
-    'MenuID',
-    'MenuState',
-    'MenuItemType'
-]
+__all__ = ['MenuState']

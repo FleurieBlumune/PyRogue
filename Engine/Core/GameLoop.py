@@ -3,14 +3,13 @@ Main game loop handling initialization, game state management, and core game flo
 """
 
 import pygame
+import pygame_gui
 import Engine.Core.Events as Events
 from Game.Content.Zones.DungeonZone import DungeonZone
 from Engine.Renderer import Renderer
 from Engine.Core.InputHandler import InputHandler
 from Game.UI.TitleScreen import TitleScreen
-from Game.UI.Menus.MenuFactory import MenuFactory
-from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
-from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
+from Engine.UI.MenuSystem import MenuState
 from pathlib import Path
 import logging
 import os
@@ -61,11 +60,11 @@ class GameSystemManager:
         self.input_handler: Optional[InputHandler] = None
         self.zone: Optional[DungeonZone] = None
         
-        # Menu systems
+        # UI systems
+        self.ui_manager: Optional[pygame_gui.UIManager] = None
         self.activity_log: Optional[ActivityLog] = None
-        self.hud_menu = None
-        self.activity_log_menu = None
-    
+        self.hud_label: Optional[pygame_gui.elements.UILabel] = None
+        
     def initialize_game_systems(self, settings: Dict[str, Any]) -> None:
         """
         Initialize all game systems with the provided settings.
@@ -83,7 +82,7 @@ class GameSystemManager:
             self._init_zone()
             self._init_renderer(settings.get('fullscreen', False))
             self._init_input_handler()
-            self._init_menus()
+            self._init_ui()
             
             # Set up event subscriptions
             self._setup_event_handlers()
@@ -111,39 +110,29 @@ class GameSystemManager:
         self.renderer.set_input_handler(self.input_handler)
         self.zone.set_event_manager(self.event_manager)
     
-    def _init_menus(self) -> None:
-        """Initialize menu systems."""
+    def _init_ui(self) -> None:
+        """Initialize UI systems."""
+        # Initialize pygame-gui manager
+        theme_path = os.path.join('Game', 'UI', 'theme.json')
+        self.ui_manager = pygame_gui.UIManager((self.state.width, self.state.height), theme_path)
+        
+        # Initialize activity log
         self.activity_log = ActivityLog.get_instance()
+        log_width = 300  # Default width for activity log
+        self.activity_log.initialize_ui(
+            self.ui_manager,
+            pygame.Rect(self.state.width - log_width, 0, log_width, self.state.height)
+        )
         
-        menu_handlers = {
-            "GetPlayerHP": lambda: (self.zone.player.stats.current_hp, 
-                                  self.zone.player.stats.max_hp),
-            "GetActivityLogMessages": self.activity_log
-        }
+        # Initialize HUD
+        self.hud_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((10, 10), (200, 30)),
+            text=f"HP: {self.zone.player.stats.current_hp}/{self.zone.player.stats.max_hp}",
+            manager=self.ui_manager
+        )
         
-        menu_factory = MenuFactory(menu_handlers)
-        self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
-        self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
-        
-        # Configure activity log
-        self._configure_activity_log()
-    
-    def _configure_activity_log(self) -> None:
-        """Configure activity log parameters and callbacks."""
-        wrap_width = max(50, self.activity_log_menu.log_width - 2 * self.activity_log_menu.padding - 12)
-        self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
-        
-        def on_resize(width: int) -> None:
-            self.activity_log_menu.log_width = width
-            self.renderer.set_game_area_width(self.state.width - width - self.activity_log_menu.padding)
-            wrap_width = max(50, width - 2 * self.activity_log_menu.padding - 12)
-            self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
-            
-        def on_resize_end() -> None:
-            if self.zone.player:
-                self.renderer.center_on_entity(self.zone.player)
-        
-        self.activity_log_menu.set_resize_callback(on_resize, on_resize_end)
+        # Update renderer game area width
+        self.renderer.set_game_area_width(self.state.width - log_width)
     
     def _setup_event_handlers(self) -> None:
         """Set up event subscriptions."""
@@ -162,50 +151,41 @@ class GameSystemManager:
             event: Pygame resize event
         """
         try:
-            old_width, old_height = self.state.width, self.state.height
-            original_log_width = getattr(self.activity_log_menu, 'log_width', None)
-            
             self.state.width = event.w
             self.state.height = event.h
             
-            # Update systems
-            self._update_renderer_size(event.w, event.h, old_width, old_height)
-            self._update_menu_size(event.w, event.h, original_log_width)
-            self._recenter_camera()
+            # Update UI manager
+            self.ui_manager.set_window_resolution((event.w, event.h))
+            
+            # Update activity log position and size
+            log_width = 300  # Keep consistent width
+            self.activity_log.resize(pygame.Rect(event.w - log_width, 0, log_width, event.h))
+            
+            # Update renderer
+            self.renderer.handle_resize(event.w, event.h)
+            self.renderer.set_game_area_width(event.w - log_width)
+            
+            # Recenter camera
+            if self.zone.player:
+                self.renderer.center_on_entity(self.zone.player)
             
         except Exception as e:
             self.logger.error(f"Error handling resize event: {e}", exc_info=True)
     
-    def _update_renderer_size(self, new_width: int, new_height: int, old_width: int, old_height: int) -> None:
-        """Update renderer dimensions."""
-        try:
-            self.renderer.handle_resize(new_width, new_height)
-        except Exception as e:
-            self.logger.error(f"Error in renderer resize: {e}", exc_info=True)
-            self.state.width, self.state.height = old_width, old_height
-            self.renderer.handle_resize(old_width, old_height)
-    
-    def _update_menu_size(self, width: int, height: int, original_log_width: Optional[int]) -> None:
-        """Update menu dimensions."""
-        if hasattr(self, 'activity_log_menu'):
-            self.activity_log_menu.handle_window_resize(width, height)
-            if all(hasattr(self.activity_log_menu, attr) for attr in ['log_width', 'on_resize']) and original_log_width:
-                self.activity_log_menu.on_resize(original_log_width + 1)
-                self.activity_log_menu.on_resize(original_log_width)
-    
-    def _recenter_camera(self) -> None:
-        """Recenter camera on player if available."""
-        if self.zone.player:
-            try:
-                self.renderer.center_on_entity(self.zone.player)
-            except Exception as e:
-                self.logger.error(f"Error centering on player: {e}", exc_info=True)
+    def update_hud(self) -> None:
+        """Update HUD display."""
+        if self.hud_label and self.zone.player:
+            self.hud_label.set_text(
+                f"HP: {self.zone.player.stats.current_hp}/{self.zone.player.stats.max_hp}"
+            )
     
     def cleanup(self) -> None:
         """Clean up game systems."""
         try:
             if self.renderer:
                 self.renderer.cleanup()
+            if self.ui_manager:
+                self.ui_manager.clear_and_reset()
         except Exception as e:
             self.logger.error(f"Error during cleanup: {e}", exc_info=True)
 
@@ -248,150 +228,100 @@ class GameLoop:
         while self.state.running:
             title_screen.render()
             should_exit, new_settings = title_screen.handle_input()
-            if should_exit:
-                if new_settings:
-                    settings = new_settings
-                break
-        
-        if self.state.running:
-            self.systems = GameSystemManager(self.state)
-            self.systems.initialize_game_systems(settings)
-        
-        return settings
-    
-    def run(self) -> None:
-        """Main game loop."""
-        try:
-            clock = pygame.time.Clock()
-            TARGET_FPS = 60
             
-            while self.state.running:
-                frame_start_time = pygame.time.get_ticks()
+            if should_exit:
+                settings = new_settings
+                break
                 
-                try:
-                    self._process_frame(frame_start_time)
-                    clock.tick(TARGET_FPS)
+        return settings
+        
+    def run(self) -> None:
+        """Run the main game loop."""
+        try:
+            # Initialize game systems
+            self.systems = GameSystemManager(self.state)
+            self.systems.initialize_game_systems(self.settings)
+            
+            clock = pygame.time.Clock()
+            
+            # Main game loop
+            while self.state.running:
+                time_delta = clock.tick(60)/1000.0
+                
+                # Process input and update
+                self._process_frame(time_delta)
+                
+                # Render
+                if self.state.needs_render:
+                    self._render_frame()
+                    self.state.needs_render = False
                     
-                except Exception as e:
-                    self.logger.error(f"Error in game loop iteration: {e}", exc_info=True)
-                    if isinstance(e, (pygame.error, SystemError)):
-                        raise
-                        
         except Exception as e:
-            self.logger.critical(f"Fatal error in game loop: {e}", exc_info=True)
+            self.logger.error(f"Error in main game loop: {e}", exc_info=True)
             raise
         finally:
             if self.systems:
                 self.systems.cleanup()
-    
-    def _process_frame(self, frame_start_time: int) -> None:
+            pygame.quit()
+            
+    def _process_frame(self, time_delta: float) -> None:
         """
-        Process a single frame of the game loop.
+        Process a single frame of the game.
         
         Args:
-            frame_start_time (int): Start time of the current frame
+            time_delta (float): Time since last frame in seconds
         """
-        self._handle_events()
-        
-        # Process input and update game state
-        if self.systems.input_handler.handle_input():
-            self.state.running = False
-            return
-            
-        self.state.needs_render = True  # Always render after input processing
-        
-        if self.systems.zone.update(frame_start_time):
-            self.state.needs_render = True
-        
-        if self.state.needs_render:
-            self._render_frame()
-    
-    def _handle_events(self) -> None:
-        """Process all pending events."""
-        for event in pygame.event.get():
-            # Try menu handling first
-            if self._handle_menu_event(event):
-                continue
-                
-            # Handle system events
-            if event.type == pygame.VIDEORESIZE:
-                self.systems._handle_resize(event)
-                self.state.needs_render = True
-                continue
-                
-            # Handle mouse events
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button in (4, 5):
-                self._handle_mouse_wheel(event)
-                continue
-                
-            # Post unhandled events back to the queue
-            pygame.event.post(event)
-            
-            # Mark for render on specific events
-            if event.type in (pygame.VIDEORESIZE, pygame.MOUSEMOTION, pygame.MOUSEBUTTONDOWN, pygame.MOUSEBUTTONUP):
-                self.state.needs_render = True
-    
-    def _handle_menu_event(self, event) -> bool:
-        """
-        Handle menu-related events.
-        
-        Args:
-            event: Pygame event to handle
-            
-        Returns:
-            bool: True if event was handled by menus
-        """
-        if hasattr(self.systems, 'activity_log_menu'):
-            if self.systems.activity_log_menu.handle_input(event):
-                self.state.needs_render = True
-                return True
-                
-        if hasattr(self.systems, 'hud_menu'):
-            if self.systems.hud_menu.handle_input(event):
-                self.state.needs_render = True
-                return True
-                
-        return False
-    
-    def _handle_mouse_wheel(self, event) -> None:
-        """
-        Handle mouse wheel events for zooming and scrolling.
-        
-        Args:
-            event: Pygame mouse event
-        """
-        log_area_x = self.state.width - self.systems.activity_log_menu.log_width - self.systems.activity_log_menu.padding
-        is_over_log = event.pos[0] > log_area_x
-        
-        if is_over_log:
-            scroll_amount = -1 if event.button == 4 else 1
-            if pygame.key.get_mods() & pygame.KMOD_SHIFT:
-                scroll_amount *= 5
-            self.systems.activity_log.scroll(scroll_amount)
-        else:
-            zoom_amount = self.systems.renderer.zoom_step if event.button == 4 else -self.systems.renderer.zoom_step
-            self.systems.renderer.adjust_zoom(zoom_amount)
-            
-        self.state.needs_render = True
-    
-    def _render_frame(self) -> None:
-        """Render the current frame."""
         try:
-            self.state.width, self.state.height = self.systems.renderer.screen.get_size()
+            # Handle events
+            self._handle_events()
             
-            self.systems.renderer.screen.fill((0, 0, 0))
-            self.systems.renderer.render_without_flip(self.systems.zone)
+            # Update UI
+            if self.systems.ui_manager:
+                self.systems.ui_manager.update(time_delta)
             
-            # Render UI elements
-            if self.systems.hud_menu:
-                self.systems.hud_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
-            if self.systems.activity_log_menu:
-                self.systems.activity_log_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
+            # Update HUD
+            self.systems.update_hud()
             
-            pygame.display.flip()
-            self.state.needs_render = False
-            
-        except pygame.error as e:
-            self.logger.error(f"Pygame error during rendering: {e}", exc_info=True)
-            self.systems.renderer.handle_resize(self.state.width, self.state.height)
             self.state.needs_render = True
+            
+        except Exception as e:
+            self.logger.error(f"Error processing frame: {e}", exc_info=True)
+            
+    def _handle_events(self) -> None:
+        """Handle all pending events."""
+        try:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.state.running = False
+                    return
+                
+                # Let UI manager handle events first
+                if self.systems.ui_manager:
+                    self.systems.ui_manager.process_events(event)
+                
+                # Handle game input
+                if self.systems.input_handler.handle_input():
+                    self.state.running = False
+                    return
+                    
+        except Exception as e:
+            self.logger.error(f"Error handling events: {e}", exc_info=True)
+            
+    def _render_frame(self) -> None:
+        """Render a frame of the game."""
+        try:
+            # Clear screen
+            self.systems.renderer.clear_screen()
+            
+            # Render game world
+            self.systems.renderer.render(self.systems.zone)
+            
+            # Render UI
+            if self.systems.ui_manager:
+                self.systems.ui_manager.draw_ui(self.systems.renderer.screen)
+            
+            # Update display
+            pygame.display.flip()
+            
+        except Exception as e:
+            self.logger.error(f"Error rendering frame: {e}", exc_info=True)

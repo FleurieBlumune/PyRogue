@@ -1,0 +1,97 @@
+{
+    "defaults":
+    {
+        "colours":
+        {
+            "normal_bg": "#000000",
+            "hovered_bg": "#202020",
+            "disabled_bg": "#101010",
+            "selected_bg": "#303030",
+            "dark_bg": "#000000",
+            "normal_text": "#CCCCCC",
+            "hovered_text": "#FFFFFF",
+            "selected_text": "#FFFFFF",
+            "disabled_text": "#404040",
+            "link_text": "#6495ED",
+            "link_hover": "#4169E1",
+            "link_selected": "#0000CD",
+            "text_shadow": "#000000",
+            "normal_border": "#404040",
+            "hovered_border": "#606060",
+            "disabled_border": "#202020",
+            "selected_border": "#808080",
+            "active_border": "#808080",
+            "filled_bar": "#6495ED",
+            "unfilled_bar": "#404040"
+        },
+        "font":
+        {
+            "name": "consolas",
+            "size": "24",
+            "regular_path": "Game/Content/Assets/Fonts/segoeuisymbol.ttf"
+        }
+    },
+    "button":
+    {
+        "colours":
+        {
+            "normal_bg": "#000000",
+            "hovered_bg": "#202020",
+            "disabled_bg": "#101010",
+            "selected_bg": "#303030",
+            "active_bg": "#303030",
+            "normal_text": "#CCCCCC",
+            "hovered_text": "#FFFFFF",
+            "selected_text": "#FFFFFF",
+            "disabled_text": "#404040",
+            "active_text": "#FFFFFF",
+            "normal_border": "#404040",
+            "hovered_border": "#606060",
+            "disabled_border": "#202020",
+            "selected_border": "#808080",
+            "active_border": "#808080"
+        },
+        "misc":
+        {
+            "border_width": "1",
+            "shadow_width": "1",
+            "tool_tip_delay": "1.0",
+            "text_horiz_alignment": "center",
+            "text_vert_alignment": "center",
+            "text_horiz_alignment_padding": "10",
+            "text_vert_alignment_padding": "5",
+            "state_transitions":
+            {
+                "normal_hovered": "0.1",
+                "hovered_normal": "0.1"
+            }
+        }
+    },
+    "drop_down_menu":
+    {
+        "colours":
+        {
+            "normal_bg": "#000000",
+            "hovered_bg": "#202020",
+            "disabled_bg": "#101010",
+            "selected_bg": "#303030",
+            "active_bg": "#303030",
+            "normal_text": "#CCCCCC",
+            "hovered_text": "#FFFFFF",
+            "selected_text": "#FFFFFF",
+            "disabled_text": "#404040",
+            "active_text": "#FFFFFF",
+            "normal_border": "#404040",
+            "hovered_border": "#606060",
+            "disabled_border": "#202020",
+            "selected_border": "#808080",
+            "active_border": "#808080"
+        },
+        "misc":
+        {
+            "border_width": "1",
+            "shadow_width": "1",
+            "expand_direction": "down"
+        }
+    }
+} 

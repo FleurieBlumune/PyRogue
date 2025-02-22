@@ -1,26 +1,28 @@
 """
-Title screen implementation using the menu system.
+Title screen implementation using pygame-gui.
 """
 
 import pygame
+import pygame_gui
+import os
+import logging
 from Engine.Core.WindowManager import WindowManager
-from Game.UI.Menus.MenuFactory import MenuFactory
-from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
-from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
+from Engine.UI.MenuSystem import MenuState
+from Engine.UI.MenuSystem.Menu import Menu
+from Game.UI.Menus.ResolutionPopupMenu import ResolutionPopupMenu
 
-class TitleScreen:
+logger = logging.getLogger(__name__)
+
+
+class TitleScreen(Menu):
     """
     Title screen implementation that manages menus and window settings.
     
     Attributes:
         window_manager (WindowManager): Manages window settings and display
         screen (pygame.Surface): The screen surface to render to
-        width (int): Current screen width
-        height (int): Current screen height
         state (MenuState): Current menu state
-        menu_factory (MenuFactory): Factory for creating menus
-        main_menu (Menu): The main menu
-        options_menu (Menu): The options menu
+        resolution_popup (ResolutionPopupMenu): Popup menu for resolution selection
     """
     
     def __init__(self, width: int, height: int):
@@ -33,54 +35,148 @@ class TitleScreen:
         """
         self.window_manager = WindowManager()
         self.screen = self.window_manager.set_mode(width, height)
-        self.width, self.height = self.window_manager.get_screen_size()
-        self.state = MenuState.MAIN
+        self.state = MenuState.MAIN  # Set state before super().__init__
+        self.resolution_popup = None
         
-        # Create action handlers with PascalCase names
-        self.menu_actions = {
-            "StartGame": lambda: {"exit": True, "fullscreen": self.window_manager.fullscreen, 
-                              "resolution": self.window_manager.get_current_resolution()},
-            "ShowOptions": lambda: setattr(self, "state", MenuState.OPTIONS),
-            "MenuBack": lambda: setattr(self, "state", MenuState.MAIN),
-            "ChangeResolution": self._update_resolution,
-            "ToggleFullscreen": self._toggle_fullscreen,
-            "GetAvailableResolutions": lambda: [f"{w}x{h}" for w, h in self.window_manager.resolutions],
-            "GetCurrentResolution": self.window_manager.get_resolution_str,
-            "GetFullscreenState": lambda: self.window_manager.fullscreen
-        }
+        theme_path = os.path.join('Game', 'UI', 'theme.json')
+        super().__init__(width, height, theme_path)  # This will call _init_gui_elements
         
-        # Create menu factory
-        self.menu_factory = MenuFactory(self.menu_actions)
-        self._create_menus()
+    def _init_gui_elements(self):
+        """Initialize pygame-gui UI elements."""
+        # Clear any existing elements
+        super()._init_gui_elements()
         
-    def _create_menus(self):
-        """Create the main and options menus."""
-        self.main_menu = self.menu_factory.create_menu(MENU_CONFIGS[MenuID.MAIN])
-        self.options_menu = self.menu_factory.create_menu(MENU_CONFIGS[MenuID.OPTIONS])
+        # Calculate center positions
+        center_x = self.width // 2
+        center_y = self.height // 2
         
-    def _update_resolution(self):
-        """Update the screen resolution."""
-        self.width, self.height = self.window_manager.cycle_resolution()
+        # Create title text
+        self.title_label = pygame_gui.elements.UILabel(
+            relative_rect=pygame.Rect((center_x - 100, center_y - 150), (200, 50)),
+            text="PyRogue",
+            manager=self.ui_manager
+        )
+        
+        # Create main menu buttons
+        button_width = 200
+        button_height = 50
+        button_spacing = 20
+        
+        if self.state == MenuState.MAIN:
+            # Start Game button
+            self.start_button = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((center_x - button_width//2, 
+                                         center_y - button_height//2), 
+                                        (button_width, button_height)),
+                text="Start Game",
+                manager=self.ui_manager
+            )
+            self.menu_items.append(self.start_button)
+            
+            # Options button
+            self.options_button = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((center_x - button_width//2, 
+                                         center_y + button_height//2 + button_spacing), 
+                                        (button_width, button_height)),
+                text="Options",
+                manager=self.ui_manager
+            )
+            self.menu_items.append(self.options_button)
+        else:  # OPTIONS state
+            # Options menu elements
+            self.resolution_label = pygame_gui.elements.UILabel(
+                relative_rect=pygame.Rect((center_x - 150, center_y - 100), (300, 30)),
+                text="Resolution",
+                manager=self.ui_manager
+            )
+            
+            # Resolution button (replacing dropdown)
+            self.resolution_button = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((center_x - 100, center_y - 60), (200, 30)),
+                text=self.window_manager.get_resolution_str(),
+                manager=self.ui_manager
+            )
+            self.menu_items.append(self.resolution_button)
+            
+            self.fullscreen_button = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((center_x - 100, center_y), (200, 30)),
+                text="Fullscreen: " + ("On" if self.window_manager.fullscreen else "Off"),
+                manager=self.ui_manager
+            )
+            self.menu_items.append(self.fullscreen_button)
+            
+            self.back_button = pygame_gui.elements.UIButton(
+                relative_rect=pygame.Rect((center_x - 100, center_y + 60), (200, 30)),
+                text="Back",
+                manager=self.ui_manager
+            )
+            self.menu_items.append(self.back_button)
+        
+        # Set initial focus
+        self._update_selection()
+    
+    def _handle_selection(self):
+        """Handle selection of the current menu item."""
+        selected_item = self.menu_items[self.selected_index]
+        
+        if self.state == MenuState.MAIN:
+            if selected_item == self.start_button:
+                return True, {
+                    "exit": True,
+                    "fullscreen": self.window_manager.fullscreen,
+                    "resolution": self.window_manager.get_current_resolution()
+                }
+            elif selected_item == self.options_button:
+                self.state = MenuState.OPTIONS
+                self._init_gui_elements()
+        else:  # OPTIONS state
+            if selected_item == self.fullscreen_button:
+                self._toggle_fullscreen()
+            elif selected_item == self.back_button:
+                self.state = MenuState.MAIN
+                self._init_gui_elements()
+            elif selected_item == self.resolution_button:
+                # Show resolution popup
+                popup_width = 250
+                popup_height = 300
+                center_x = self.width // 2
+                center_y = self.height // 2
+                popup_rect = pygame.Rect(
+                    center_x - popup_width // 2,
+                    center_y - popup_height // 2,
+                    popup_width,
+                    popup_height
+                )
+                
+                self.resolution_popup = ResolutionPopupMenu(
+                    rect=popup_rect,
+                    window_manager=self.window_manager,
+                    callback=self._handle_resolution_selection,
+                    manager=self.ui_manager,
+                    on_close=self._handle_popup_close
+                )
+        
+        return False, {}
+        
+    def _handle_resolution_selection(self, resolution: str):
+        """Handle resolution selection from the popup menu."""
+        width, height = map(int, resolution.split('x'))
+        self.width, self.height = self.window_manager.set_resolution(width, height)
         self.screen = self.window_manager.screen
-        # Recreate menus with new dimensions
-        self._create_menus()
+        self.ui_manager.set_window_resolution((self.width, self.height))
+        self._init_gui_elements()
+        
+    def _handle_popup_close(self):
+        """Handle popup being closed."""
+        self.resolution_popup = None
         
     def _toggle_fullscreen(self):
         """Toggle fullscreen mode."""
         self.window_manager.toggle_fullscreen()
         self.width, self.height = self.window_manager.get_screen_size()
         self.screen = self.window_manager.screen
-        # Recreate menus with new dimensions
-        self._create_menus()
-
-    def render(self):
-        """Render the current menu."""
-        self.screen.fill((0, 0, 0))
-        if self.state == MenuState.MAIN:
-            self.main_menu.render(self.screen, self.width, self.height)
-        else:
-            self.options_menu.render(self.screen, self.width, self.height)
-        pygame.display.flip()
+        self.ui_manager.set_window_resolution((self.width, self.height))
+        self._init_gui_elements()
 
     def handle_input(self) -> tuple[bool, dict]:
         """
@@ -89,17 +185,48 @@ class TitleScreen:
         Returns:
             tuple[bool, dict]: (should_exit, settings)
         """
+        time_delta = pygame.time.Clock().tick(60)/1000.0
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 return True, {}
             
-            result = None
-            if self.state == MenuState.MAIN:
-                result = self.main_menu.handle_input(event)
-            else:
-                result = self.options_menu.handle_input(event)
+            # If popup is active, let it handle input first
+            if self.resolution_popup is not None:
+                # Let UI manager process events for the popup
+                self.ui_manager.process_events(event)
+                self.ui_manager.update(time_delta)
+                return False, {}
+            
+            # Handle keyboard navigation
+            result = super()._handle_keyboard_navigation(event)
+            if result is not None:
+                return result
                 
-            if isinstance(result, dict) and result.get('exit'):
-                return True, result
-                
+            if event.type == pygame.USEREVENT:
+                if event.user_type == pygame_gui.UI_BUTTON_PRESSED:
+                    if self.state == MenuState.MAIN:
+                        if event.ui_element == self.start_button:
+                            return True, {
+                                "exit": True,
+                                "fullscreen": self.window_manager.fullscreen,
+                                "resolution": self.window_manager.get_current_resolution()
+                            }
+                        elif event.ui_element == self.options_button:
+                            self.state = MenuState.OPTIONS
+                            self._init_gui_elements()
+                    else:  # OPTIONS state
+                        if event.ui_element == self.fullscreen_button:
+                            self._toggle_fullscreen()
+                        elif event.ui_element == self.back_button:
+                            self.state = MenuState.MAIN
+                            self._init_gui_elements()
+            
+            self.ui_manager.process_events(event)
+            
+        self.ui_manager.update(time_delta)
         return False, {}
+
+    def render(self):
+        """Render the current menu."""
+        super().render(self.screen)

@@ -242,3 +242,39 @@ class WindowManager:
     def get_current_resolution(self) -> tuple[int, int]:
         """Get current resolution based on fullscreen state."""
         return (self.monitor_width, self.monitor_height) if self.fullscreen else self.resolutions[self.current_resolution_index]
+
+    def set_resolution(self, width: int, height: int) -> tuple[int, int]:
+        """
+        Set the screen resolution to the specified dimensions.
+        
+        Args:
+            width (int): Desired screen width
+            height (int): Desired screen height
+            
+        Returns:
+            tuple[int, int]: The actual (width, height) after setting the resolution
+        """
+        try:
+            self.logger.debug(f"Setting resolution to {width}x{height}")
+            
+            # Find the closest matching resolution in our list
+            target_res = (width, height)
+            if target_res in self.resolutions:
+                self.current_resolution_index = self.resolutions.index(target_res)
+            else:
+                self.logger.warning(f"Resolution {width}x{height} not in available resolutions")
+                # Find closest match
+                closest = min(self.resolutions, key=lambda res: abs(res[0] - width) + abs(res[1] - height))
+                self.logger.debug(f"Using closest available resolution: {closest}")
+                width, height = closest
+                self.current_resolution_index = self.resolutions.index(closest)
+            
+            # Set the new mode
+            self.screen = self.set_mode(width, height, self.fullscreen)
+            
+            # Return actual dimensions
+            return self.get_screen_size()
+            
+        except Exception as e:
+            self.logger.error(f"Error setting resolution: {e}", exc_info=True)
+            raise
