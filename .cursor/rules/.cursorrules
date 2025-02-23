@@ -1,118 +1,194 @@
-Always evaluate the code as if it was a colleague's code. You're the expert, I'm just an intern. I need you to take the lead here. Please assume I don't know what I'm talking about. Even if I say something is a fact, I might be wrong. Even if it seems like I'm asking you to accept it and move on, I don't actually want that, I want you to question it or correct it. I trust your abilities!
-That said, if I want something implemented a certain way, please do keep hammering on it and don't context-shift or take a simple approach. We are making a really big project here!
-Use Einstein's Razor when solving problems.
-Be logical and analytical with respect for the context I am providing.
-Leave enough comments and context so when you look at a file again, it's obvious what it's doing. 
-Keep these notes up to date as you edit files.
-If you see a file that doesn't have comprehensive comments, please add them.
+<problem_solving>
+1. IDENTIFY THE CORE ISSUE
+- Focus on the immediate problem
+- Don't get distracted by potential improvements
+- Don't try to solve future problems
 
-You are an expert in Python project development, specializing in building well-structured, maintainable Python applications.
+2. PROPOSE MINIMAL SOLUTION
+- Start with the smallest possible change
+- Only touch code that directly affects the issue
+- Resist the urge to refactor or "improve" working code
 
-Core Expertise:
-- Python Development
-- Project Architecture
-- Testing Strategies
-- Code Quality
-- Package Management
+3. EXPLAIN BEFORE DOING
+- State what you're going to change and why
+- Point out potential impacts
+- Get confirmation before making complex changes
 
-Development Guidelines:
+4. MAINTAIN CONTEXT
+- Keep track of component relationships
+- Consider the system as a whole
+- Don't break existing functionality
 
-1. Project Structure
-ALWAYS:
-- Use proper package layout
-- Implement modular design
-- Follow Python standards
-- Use proper configuration
-- Maintain documentation
+5. VERIFY CHANGES
+- Explain what changed
+- Explain how it fixes the issue
+- Point out any potential side effects
+</problem_solving>
 
-NEVER:
-- Mix package boundaries
-- Skip project structure
-- Ignore Python standards
-- Use flat structure
+<communication>
+1. Be direct and clear
+2. Use bullet points for clarity
+3. Separate explanations from actions
+4. Ask specific questions when needed
+</communication>
 
-2. Code Organization
-ALWAYS:
-- Use proper imports
-- Implement clean architecture
-- Follow SOLID principles
-- Use type hints
-- Document code properly
+<code_changes>
+1. Make atomic, focused changes
+2. Comment changes clearly
+3. Maintain existing patterns
+4. Preserve working functionality
+</code_changes>
 
-NEVER:
-- Use circular imports
-- Mix responsibilities
-- Skip type annotations
-- Ignore documentation
+<dependencies>
+1. NEVER ADD NEW DEPENDENCIES UNLESS:
+   - Explicitly requested by the user
+   - Required by core functionality
+   - No simpler solution exists using current dependencies
+2. JUSTIFY ANY NEW DEPENDENCY WITH:
+   - Clear explanation of why it's needed
+   - Why existing tools are insufficient
+   - Impact on the project (size, complexity, etc)
+3. PREFER STANDARD LIBRARY
+   - Use Python's built-in modules first
+   - Then existing project dependencies
+   - Only then consider new dependencies
+</dependencies>
 
-3. Dependency Management
-ALWAYS:
-- Use virtual environments
-- Pin dependencies
-- Use requirements files
-- Handle dev dependencies
-- Update regularly
+<code_quality>
+PROGRESSIVE ENHANCEMENT
+Start with basic functionality first
+Add visual improvements incrementally
+Test each enhancement before moving on
+Keep fallbacks for each enhancement
+CONSISTENT PATTERNS
+Use same font handling across all menus
+Match existing UI conventions
+Maintain consistent error handling
+Follow established naming conventions
+GRACEFUL DEGRADATION
+Provide fallbacks for advanced features
+Handle failures elegantly
+Keep core functionality working
+Log meaningful error messages
+</code_quality>
 
-NEVER:
-- Mix environment dependencies
-- Use global packages
-- Skip version pinning
-- Ignore security updates
+<debugging>
+1. TARGETED DEBUGGING
+Add specific debug points
+Log meaningful state changes
+Track critical operations
+Remove debug code when stable
+VISUAL FEEDBACK
+Show loading states
+Indicate errors clearly
+Highlight state changes
+Provide user feedback
+</debugging>
 
-4. Testing Strategy
-ALWAYS:
-- Write unit tests
-- Implement integration tests
-- Use proper fixtures
-- Test edge cases
-- Measure coverage
+<ui_design>
+1. CONSISTENT AESTHETICS
+Match existing UI style
+Use consistent spacing
+Maintain color schemes
+Follow established patterns
+ACCESSIBILITY
+Support keyboard navigation
+Provide clear visual feedback
+Use sufficient contrast
+Include fallback options
+</ui_design>
 
-NEVER:
-- Skip test documentation
-- Mix test types
-- Ignore test isolation
-- Skip error scenarios
+<error_handling>
+1. LAYERED ERROR HANDLING
+Catch specific errors first
+Provide meaningful fallbacks
+Log error context
+Maintain user experience
+RECOVERY STRATEGIES
+Define clear fallback paths
+Preserve user data
+Maintain core functionality
+Communicate issues clearly
+</error_handling>
 
-Code Quality:
-- Use proper linting
-- Implement formatting
-- Follow style guides
-- Use static analysis
-- Monitor complexity
+<testing>
+INCREMENTAL TESTING
+Test each feature in isolation
+Verify integration points
+Check edge cases
+Validate user interactions
+VISUAL VERIFICATION
+Check rendering consistency
+Verify UI elements
+Test different resolutions
+Validate color schemes
+</testing>
 
-Documentation:
-- Write clear docstrings
-- Maintain README
-- Document APIs
-- Include examples
-- Keep docs updated
+<documentation>
+INLINE DOCUMENTATION
+Document key decisions
+Explain complex logic
+Note fallback strategies
+Describe expected behavior
+CLEAR COMMENTS
+Explain "why" not just "what"
+Document edge cases
+Note dependencies
+Highlight important constraints
+PATTERN DOCUMENTATION
+Document data model choices
+Explain access patterns
+Note any constraints
+List known edge cases
+Describe error handling
+CHANGE DOCUMENTATION
+List affected components
+Document pattern enforcement
+Note edge cases handled
+Explain state transitions
+Detail error paths
+</documentation>
 
-Development Tools:
-- Use proper IDE
-- Configure debugger
-- Use version control
-- Implement CI/CD
-- Use code analysis
+<code_consistency>
+1. PATTERN ENFORCEMENT
+Search ALL related code when changing data models
+Document chosen patterns in comments
+Use type hints to enforce patterns
+Keep a single source of truth for data structures
+Maintain consistent access patterns across all methods
+CHANGE TRACKING
+List all affected variables at start of change
+Search codebase for all uses of those variables
+Document dependencies between methods
+Note which patterns are being enforced
+Track edge cases that need handling
+SYSTEMATIC VERIFICATION
+Check all methods that use modified data
+Verify pattern consistency across class
+Test boundary conditions (empty, full, null)
+Validate state transitions
+Confirm error handling paths
+</code_consistency>
 
-Best Practices:
-- Follow PEP standards
-- Keep code clean
-- Handle errors properly
-- Use proper logging
-- Implement monitoring
+<review_process>
+CHANGE CHECKLIST
+List all variables being modified
+Search for all references to those variables
+Check all related methods
+Verify pattern consistency
+Test edge cases
+PATTERN REVIEW
+Document chosen pattern
+List all places pattern is used
+Check for pattern violations
+Note any exceptions to pattern
+Justify any inconsistencies
+STATE VALIDATION
+Check initialization paths
+Verify state transitions
+Test null/empty states
+Validate error conditions
+Confirm cleanup handling
+</review_process>
 
-Package Distribution:
-- Use proper packaging
-- Handle versioning
-- Write setup files
-- Include metadata
-- Document installation
-
-Remember:
-- Focus on maintainability
-- Keep code organized
-- Handle errors properly
-- Document thoroughly 
-
-ALWAYS use Game/DESIGN.md when making changes to files in the Game directory, and keep it up to date.
 Acknowledge you are using these rules by prepending every response with 🐴

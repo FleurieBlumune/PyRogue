@@ -29,16 +29,22 @@ class HandPanel:
             window_surface: The main game window surface
             deck_manager: The deck management system
         """
+        logger.info("Initializing HandPanel")
         self.window_surface = window_surface
         self.deck_manager = deck_manager
         self.is_visible = True
         self.selected_card = None
+        
+        # Log initial state
+        draw_count, discard_count, hand_count = self.deck_manager.get_card_counts()
+        logger.info(f"Initial deck state - Draw: {draw_count}, Discard: {discard_count}, Hand: {hand_count}")
         
         # Initialize dimensions
         self.update_dimensions()
         
         # Initialize fonts
         self.init_fonts()
+        logger.info("HandPanel initialization complete")
         
     def update_dimensions(self):
         """Update panel dimensions based on window size."""

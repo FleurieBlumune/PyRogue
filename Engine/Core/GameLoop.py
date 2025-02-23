@@ -13,6 +13,7 @@ from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
 from Game.UI.Menus.InventoryMenu import InventoryMenu
 from Game.UI.Menus.PauseMenu import PauseMenu
+from Game.UI.Menus.HandPanel import HandPanel
 from pathlib import Path
 import logging
 import os
@@ -69,6 +70,7 @@ class GameSystemManager:
         self.activity_log_menu = None
         self.inventory_menu = None
         self.pause_menu = None
+        self.hand_panel = None  # New hand panel UI
     
     def initialize_game_systems(self, settings: Dict[str, Any]) -> None:
         """
@@ -130,6 +132,12 @@ class GameSystemManager:
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
         self.inventory_menu = InventoryMenu(self.renderer.screen)
         self.pause_menu = PauseMenu(self.renderer.screen)
+        
+        # Initialize hand panel with renderer screen and deck manager
+        if self.zone and self.zone.player and hasattr(self.zone.player, 'deck_manager'):
+            self.hand_panel = HandPanel(self.renderer.screen, self.zone.player.deck_manager)
+        else:
+            self.logger.warning("Player or deck_manager not found, hand panel will not be initialized")
         
         # Configure activity log
         self._configure_activity_log()
@@ -198,6 +206,9 @@ class GameSystemManager:
             if all(hasattr(self.activity_log_menu, attr) for attr in ['log_width', 'on_resize']) and original_log_width:
                 self.activity_log_menu.on_resize(original_log_width + 1)
                 self.activity_log_menu.on_resize(original_log_width)
+                
+        if hasattr(self, 'hand_panel'):
+            self.hand_panel.handle_resize()
     
     def _recenter_camera(self) -> None:
         """Recenter camera on player if available."""
@@ -320,7 +331,7 @@ class GameLoop:
                 continue
                 
             # Handle system events
-            if not handled and event.type == pygame.VIDEORESIZE:
+            if event.type == pygame.VIDEORESIZE:
                 self.systems._handle_resize(event)
                 self.state.needs_render = True
                 continue
@@ -348,16 +359,22 @@ class GameLoop:
             bool: True if event was handled by menus
         """
         # Handle inventory menu first if it's visible
-        if hasattr(self.systems, 'inventory_menu'):
+        if hasattr(self.systems, 'inventory_menu') and self.systems.inventory_menu:
             if self.systems.inventory_menu.handle_event(event):
                 self.state.needs_render = True
                 return True
         
+        # Handle hand panel events
+        if hasattr(self.systems, 'hand_panel') and self.systems.hand_panel:
+            if self.systems.hand_panel.handle_event(event):
+                self.state.needs_render = True
+                return True
+        
         # Handle pause menu only if no other menu is visible
-        if hasattr(self.systems, 'pause_menu'):
+        if hasattr(self.systems, 'pause_menu') and self.systems.pause_menu:
             # Only check for other menus when trying to open pause menu
             any_menu_visible = (
-                (hasattr(self.systems, 'inventory_menu') and self.systems.inventory_menu.is_visible)
+                (hasattr(self.systems, 'inventory_menu') and self.systems.inventory_menu and self.systems.inventory_menu.is_visible)
             )
             
             if not any_menu_visible or self.systems.pause_menu.is_visible:
@@ -369,12 +386,12 @@ class GameLoop:
                     return True
                 
         # Handle other menus
-        if hasattr(self.systems, 'activity_log_menu'):
+        if hasattr(self.systems, 'activity_log_menu') and self.systems.activity_log_menu:
             if self.systems.activity_log_menu.handle_input(event):
                 self.state.needs_render = True
                 return True
                 
-        if hasattr(self.systems, 'hud_menu'):
+        if hasattr(self.systems, 'hud_menu') and self.systems.hud_menu:
             if self.systems.hud_menu.handle_input(event):
                 self.state.needs_render = True
                 return True
@@ -419,6 +436,8 @@ class GameLoop:
                 self.systems.inventory_menu.draw()
             if self.systems.pause_menu:
                 self.systems.pause_menu.draw()
+            if self.systems.hand_panel:
+                self.systems.hand_panel.draw()
             
             pygame.display.flip()
             self.state.needs_render = False

@@ -6,6 +6,7 @@ from Game.Content.Entities.Entity import Entity
 from Game.Content.Entities.EntityType import EntityType
 from Engine.Core.Utils.Position import Position
 from Engine.Core.Events import EventManager, GameEventType
+from Game.Content.Cards.DeckManager import DeckManager
 
 class Player(Entity):
     def __init__(self, position: Position):
@@ -28,6 +29,15 @@ class Player(Entity):
         self.event_manager = EventManager.get_instance()
         self.logger = logging.getLogger(__name__)
         self.event_manager.subscribe(GameEventType.ENTITY_TURN, self._do_turn)
+        
+        # Initialize deck manager
+        self.deck_manager = DeckManager()
+        # Build initial deck with some test cards for now
+        try:
+            self.deck_manager.build_deck([1, 2])  # Add some test card IDs
+            self.deck_manager.draw_hand()  # Draw initial hand
+        except Exception as e:
+            self.logger.error(f"Error initializing deck: {e}", exc_info=True)
 
     def handle_click(self, tile_x: int, tile_y: int) -> bool:
         """Handle a click at the given tile coordinates"""           
