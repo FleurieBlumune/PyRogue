@@ -25,9 +25,30 @@ class InventoryManager:
     - Managing card quantities
     - Card usage and effects
     - Saving/loading inventory state
+    
+    This is a singleton class - only one instance should exist.
     """
     
+    _instance = None
+    
+    @classmethod
+    def get_instance(cls) -> 'InventoryManager':
+        """Get the singleton instance of InventoryManager."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
     def __init__(self, inventory_path: str = "Game/Content/Data/CSV/player_inventory.csv"):
+        """
+        Initialize the inventory manager.
+        
+        Args:
+            inventory_path: Path to the inventory CSV file
+        """
+        # Ensure singleton pattern
+        if InventoryManager._instance is not None:
+            raise RuntimeError("InventoryManager is a singleton - use get_instance()")
+            
         self.inventory_path = Path(inventory_path)
         self.cards: Dict[int, CardStack] = {}  # Changed to use integer keys
         self._active_cards: List[int] = []  # Changed to use integer IDs

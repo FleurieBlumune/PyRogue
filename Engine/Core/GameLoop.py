@@ -320,7 +320,7 @@ class GameLoop:
                 continue
                 
             # Handle system events
-            if event.type == pygame.VIDEORESIZE:
+            if not handled and event.type == pygame.VIDEORESIZE:
                 self.systems._handle_resize(event)
                 self.state.needs_render = True
                 continue

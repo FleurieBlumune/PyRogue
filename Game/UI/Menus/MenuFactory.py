@@ -6,7 +6,6 @@ from typing import Callable, Dict, List, Optional
 import pygame
 import logging
 import os
-from Engine.UI.MenuSystem.Menu import Menu
 from Engine.UI.MenuSystem.MenuItem import MenuItem
 from Engine.UI.MenuSystem.MenuTypes import MenuItemType
 from Game.UI.Menus.MenuConfigs import FONT_CONFIGS
@@ -83,14 +82,8 @@ class MenuFactory:
         
         self.logger.debug("MenuFactory initialized with Unicode-enabled fonts")
         
-    def create_menu(self, config: dict) -> Menu:
+    def create_menu(self, config: dict) -> 'Menu':
         """
-        Create a menu from configuration data.
-        
-        Args:
-            config: Dictionary containing menu configuration
-            
-        Returns:
         Create a menu from configuration data.
         
         Args:
@@ -99,6 +92,9 @@ class MenuFactory:
         Returns:
             Menu: The created menu
         """
+        # Lazy import to avoid circular dependency
+        from Engine.UI.MenuSystem.Menu import Menu
+        
         self.logger.debug(f"Creating menu from config: {config.get('Title', 'Untitled')}")
         # Use appropriate font based on menu position/type
         if config.get("Position") == "top-left":

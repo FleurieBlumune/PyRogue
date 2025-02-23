@@ -4,9 +4,9 @@ Title screen implementation using the menu system.
 
 import pygame
 from Engine.Core.WindowManager import WindowManager
-from Game.UI.Menus.MenuFactory import MenuFactory
 from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuState
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
+from Game.UI.Menus.MenuFactory import MenuFactory
 
 class TitleScreen:
     """
@@ -18,7 +18,6 @@ class TitleScreen:
         width (int): Current screen width
         height (int): Current screen height
         state (MenuState): Current menu state
-        menu_factory (MenuFactory): Factory for creating menus
         main_menu (Menu): The main menu
         options_menu (Menu): The options menu
     """

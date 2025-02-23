@@ -1,11 +1,11 @@
 """
-Menu system components.
-
-This package contains:
-- Menu base class
-- Menu item types
-- Menu state management
+Menu system module.
 """
+
+from .MenuTypes import MenuState
+from .Menu import Menu
+
+__all__ = ['MenuState', 'Menu']
 
 from .Menu import Menu
 from .MenuItem import MenuItem

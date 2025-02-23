@@ -42,14 +42,9 @@ class DeckManager:
     MAX_DECK_SIZE = 20
     HAND_SIZE = 5
     
-    def __init__(self, inventory: InventoryManager):
-        """
-        Initialize a new deck manager.
-        
-        Args:
-            inventory: The player's inventory manager
-        """
-        self.inventory = inventory
+    def __init__(self):
+        """Initialize a new deck manager."""
+        self.inventory = InventoryManager.get_instance()
         self.state = DeckState()
         
     def build_deck(self, card_ids: List[int]) -> None:

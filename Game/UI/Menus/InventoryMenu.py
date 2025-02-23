@@ -58,7 +58,7 @@ class InventoryMenu:
         self.scroll_offset = {'left': 0, 'right': 0}
         
         # Initialize inventory manager
-        self.inventory = InventoryManager()
+        self.inventory = InventoryManager.get_instance()
         
         # Card data
         self.available_cards = []  # Will be populated by refresh_cards

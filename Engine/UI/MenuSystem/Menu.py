@@ -8,7 +8,6 @@ from .MenuItem import MenuItem
 from .MenuTypes import MenuItemType
 import re
 import logging
-from Game.UI.Menus.MessageLog import ActivityLog
 
 class Menu:
     # Track occupied screen regions across all menus
@@ -115,7 +114,8 @@ class Menu:
                 # Calculate new wrap width considering padding and scrollbar offset
                 new_wrap_width = max(50, self.log_width - 2 * self.padding - 12)  # Ensure minimum width
                 
-                # Update ActivityLog wrap parameters
+                # Update ActivityLog wrap parameters - use lazy import
+                from Game.UI.Menus.MessageLog import ActivityLog
                 activity_log = ActivityLog.get_instance()
                 if activity_log:
                     activity_log.set_wrap_params(new_wrap_width, self.font_small)
