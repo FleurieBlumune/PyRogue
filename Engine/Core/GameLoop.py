@@ -130,14 +130,17 @@ class GameSystemManager:
         menu_factory = MenuFactory(menu_handlers)
         self.hud_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.HUD])
         self.activity_log_menu = menu_factory.create_menu(MENU_CONFIGS[MenuID.ACTIVITY_LOG])
-        self.inventory_menu = InventoryMenu(self.renderer.screen)
-        self.pause_menu = PauseMenu(self.renderer.screen)
         
         # Initialize hand panel with renderer screen and deck manager
         if self.zone and self.zone.player and hasattr(self.zone.player, 'deck_manager'):
             self.hand_panel = HandPanel(self.renderer.screen, self.zone.player.deck_manager)
+            # Pass the same deck_manager to inventory menu
+            self.inventory_menu = InventoryMenu(self.renderer.screen, self.zone.player.deck_manager)
         else:
             self.logger.warning("Player or deck_manager not found, hand panel will not be initialized")
+            self.inventory_menu = InventoryMenu(self.renderer.screen)
+            
+        self.pause_menu = PauseMenu(self.renderer.screen)
         
         # Configure activity log
         self._configure_activity_log()

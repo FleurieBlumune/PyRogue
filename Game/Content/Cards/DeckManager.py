@@ -10,6 +10,9 @@ The deck system handles:
 """
 
 import random
+import csv
+import logging
+from pathlib import Path
 from typing import List, Set, Optional
 from dataclasses import dataclass, field
 from . import Card, CardRarity
@@ -42,11 +45,41 @@ class DeckManager:
     MAX_DECK_SIZE = 20
     HAND_SIZE = 5
     
-    def __init__(self):
+    def __init__(self, deck_path: str = "Game/Content/Data/CSV/player_deck.csv"):
         """Initialize a new deck manager."""
         self.inventory = InventoryManager.get_instance()
         self.state = DeckState()
+        self.deck_path = Path(deck_path)
+        self.load_deck()
         
+    def save_deck(self) -> None:
+        """Save the current deck list to CSV."""
+        # Ensure the directory exists
+        self.deck_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(self.deck_path, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['card_id'])  # Header
+            for card_id in self.state.deck_list:
+                writer.writerow([card_id])
+                
+    def load_deck(self) -> None:
+        """Load the deck from CSV and build it."""
+        if not self.deck_path.exists():
+            return
+            
+        try:
+            card_ids = []
+            with open(self.deck_path, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    card_ids.append(int(row['card_id']))
+            
+            if card_ids:
+                self.build_deck(card_ids)
+        except Exception as e:
+            logging.error(f"Failed to load deck: {e}")
+            
     def build_deck(self, card_ids: List[int]) -> None:
         """
         Build a new deck from the specified card IDs.
@@ -75,6 +108,9 @@ class DeckManager:
             for card_id in card_ids
         ]
         self.shuffle_deck()
+        
+        # Save the deck after building
+        self.save_deck()
         
     def shuffle_deck(self) -> None:
         """Shuffle the draw pile."""

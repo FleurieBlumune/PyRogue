@@ -7,6 +7,7 @@ import logging
 from Engine.UI.MenuSystem.MenuTypes import MenuID, MenuItemType
 from Game.Content.Cards.CardLoader import CardLoader
 from Game.Content.Cards.InventoryManager import InventoryManager
+from Game.Content.Cards.DeckManager import DeckManager
 from Game.UI.Menus.MenuConfigs import MENU_CONFIGS
 
 logger = logging.getLogger(__name__)
@@ -31,13 +32,22 @@ class InventoryMenu:
         'RARE': (0, 100, 255),        # Blue
         'LEGENDARY': (255, 215, 0)     # Gold
     }
+    
+    # Rarity symbols (will be overridden if Unicode not supported)
+    RARITY_SYMBOLS = {
+        'COMMON': '◆',      # Diamond
+        'UNCOMMON': '◆',    # Diamond
+        'RARE': '◆',        # Diamond
+        'LEGENDARY': '★'    # Star
+    }
 
-    def __init__(self, window_surface: pygame.Surface):
+    def __init__(self, window_surface: pygame.Surface, deck_manager: DeckManager = None):
         """
         Initialize the inventory menu.
         
         Args:
             window_surface: The main game window surface
+            deck_manager: Optional DeckManager instance. If None, a new one will be created.
         """
         self.window_surface = window_surface
         self.config = MENU_CONFIGS[MenuID.INVENTORY]
@@ -57,8 +67,9 @@ class InventoryMenu:
         self.selected_panel = 'left'  # 'left' or 'right'
         self.scroll_offset = {'left': 0, 'right': 0}
         
-        # Initialize inventory manager
+        # Initialize managers
         self.inventory = InventoryManager.get_instance()
+        self.deck_manager = deck_manager or DeckManager()
         
         # Card data
         self.available_cards = []  # Will be populated by refresh_cards
@@ -71,9 +82,6 @@ class InventoryMenu:
             self.unicode_supported = test_rect.width > 0
         except:
             self.unicode_supported = False
-        
-        if not self.unicode_supported:
-            logger.debug("Unicode not supported, falling back to ASCII symbols")
             self.RARITY_SYMBOLS = {
                 'COMMON': '*',      # Asterisk
                 'UNCOMMON': '+',    # Plus
@@ -118,8 +126,8 @@ class InventoryMenu:
             # Set up rarity symbols
             self.RARITY_SYMBOLS = {
                 'COMMON': '◆',      # Diamond
-                'UNCOMMON': '◈',    # Hollow diamond
-                'RARE': '❖',        # Black diamond minus white
+                'UNCOMMON': '◆',    # Diamond
+                'RARE': '◆',        # Diamond
                 'LEGENDARY': '★'    # Star
             }
         except:
@@ -256,8 +264,14 @@ class InventoryMenu:
         self.refresh_cards()
         
     def hide(self):
-        """Hide the inventory menu."""
+        """Hide the inventory menu and save deck changes."""
         self.is_visible = False
+        # Save deck changes when closing inventory
+        if self.deck_cards:
+            try:
+                self.deck_manager.build_deck([card.id for card in self.deck_cards])
+            except Exception as e:
+                logger.error(f"Failed to save deck: {e}")
         
     def toggle(self):
         """Toggle the visibility of the inventory menu."""
@@ -269,17 +283,24 @@ class InventoryMenu:
     def refresh_cards(self):
         """Refresh the card displays in both panels."""
         try:
-            logger.debug("Loading cards from inventory...")  # Debug
+            logger.debug("Loading cards from inventory...")
             # Always reload available cards to get current quantities
             self.available_cards = [
                 stack.card for stack in self.inventory.cards.values()
             ]
-            logger.debug(f"Loaded {len(self.available_cards)} cards")  # Debug
+            logger.debug(f"Loaded {len(self.available_cards)} cards")
+            
+            # Load current deck if empty
+            if not self.deck_cards and self.deck_manager.state.deck_list:
+                self.deck_cards = [
+                    self.inventory.cards[card_id].card 
+                    for card_id in self.deck_manager.state.deck_list
+                ]
             
             # Set initial selection to first card if none selected
             if self.available_cards and self.selected_card is None:
                 self.selected_card = 0
-                logger.debug(f"Set initial selection to: {self.available_cards[0].name}")  # Debug
+                logger.debug(f"Set initial selection to: {self.available_cards[0].name}")
             
             # Validate deck cards against inventory
             valid_deck_cards = []
@@ -294,10 +315,10 @@ class InventoryMenu:
             # Update deck with valid cards
             self.deck_cards = valid_deck_cards
             
-            logging.debug(f"Drawing {len(self.available_cards)} available cards")  # Debug
+            logging.debug(f"Drawing {len(self.available_cards)} available cards")
             
         except Exception as e:
-            logger.debug(f"Error refreshing cards: {e}")  # Basic error handling for now
+            logger.error(f"Error refreshing cards: {e}")  # Changed to error level
         
     def handle_event(self, event: pygame.event.Event) -> bool:
         """
