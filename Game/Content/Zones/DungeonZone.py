@@ -262,10 +262,12 @@ class DungeonZone(Zone):
                 random.randint(room.position.x + 1, room.position.x + room.width - 2),
                 random.randint(room.position.y + 1, room.position.y + room.height - 2)
             )
-            # Random selection of NPC type
-            npc_type = random.choice([
-                # EntityType.BEAST,
-                EntityType.UNDEAD
-            ])
+            # Random selection of NPC type with weighted probabilities
+            npc_type = random.choices([
+                EntityType.CIVILIAN,    # Most common
+                EntityType.GUARD,       # Security patrols
+                EntityType.RESEARCHER,  # Other scientists
+                EntityType.SUBJECT      # Already transformed subjects
+            ], weights=[50, 25, 15, 10])[0]
             new_npc = NPC(pos, npc_type)
             self.add_entity(new_npc) 

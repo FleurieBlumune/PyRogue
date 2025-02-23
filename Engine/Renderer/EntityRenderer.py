@@ -31,11 +31,11 @@ class EntityRenderer:
     
     # Define colors for different entity types
     ENTITY_COLORS = {
-        EntityType.PLAYER: (0, 255, 0),     # Green
-        EntityType.HUMANOID: (0, 0, 255),   # Blue
-        EntityType.BEAST: (255, 0, 0),      # Red
-        EntityType.UNDEAD: (255, 215, 0),   # Gold
-        EntityType.MERCHANT: (255, 255, 0),  # Yellow
+        EntityType.PLAYER: (0, 255, 255),    # Cyan for scientist/player
+        EntityType.GUARD: (255, 0, 0),       # Red for security
+        EntityType.CIVILIAN: (150, 150, 150), # Gray for civilians
+        EntityType.RESEARCHER: (0, 255, 0),   # Green for friendly researchers
+        EntityType.SUBJECT: (255, 165, 0),    # Orange for test subjects
     }
     
     def __init__(self, camera: Camera):
