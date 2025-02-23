@@ -436,9 +436,9 @@ class GameLoop:
             if self.systems.activity_log_menu:
                 self.systems.activity_log_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
             if self.systems.inventory_menu:
-                self.systems.inventory_menu.draw()
+                self.systems.inventory_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
             if self.systems.pause_menu:
-                self.systems.pause_menu.draw()
+                self.systems.pause_menu.render(self.systems.renderer.screen, self.state.width, self.state.height)
             if self.systems.hand_panel:
                 self.systems.hand_panel.draw()
             
