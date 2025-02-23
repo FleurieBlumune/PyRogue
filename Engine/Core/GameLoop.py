@@ -134,6 +134,9 @@ class GameSystemManager:
         # Initialize hand panel with renderer screen and deck manager
         if self.zone and self.zone.player and hasattr(self.zone.player, 'deck_manager'):
             self.hand_panel = HandPanel(self.renderer.screen, self.zone.player.deck_manager)
+            # Ensure HandPanel has the same width as activity log menu
+            if hasattr(self.activity_log_menu, 'log_width'):
+                self.hand_panel.set_activity_log_width(self.activity_log_menu.log_width + self.activity_log_menu.padding)
             # Pass the same deck_manager to inventory menu
             self.inventory_menu = InventoryMenu(self.renderer.screen, self.zone.player.deck_manager)
         else:
@@ -155,6 +158,9 @@ class GameSystemManager:
             self.renderer.set_game_area_width(self.state.width - width - self.activity_log_menu.padding)
             wrap_width = max(50, width - 2 * self.activity_log_menu.padding - 12)
             self.activity_log.set_wrap_params(wrap_width, self.activity_log_menu.font_small)
+            # Update HandPanel with new activity log width
+            if hasattr(self, 'hand_panel') and self.hand_panel:
+                self.hand_panel.set_activity_log_width(width + self.activity_log_menu.padding)
             
         def on_resize_end() -> None:
             if self.zone.player:
@@ -211,6 +217,9 @@ class GameSystemManager:
                 self.activity_log_menu.on_resize(original_log_width)
                 
         if hasattr(self, 'hand_panel'):
+            # Update HandPanel with current activity log width
+            if hasattr(self, 'activity_log_menu'):
+                self.hand_panel.set_activity_log_width(self.activity_log_menu.log_width + self.activity_log_menu.padding)
             self.hand_panel.handle_resize()
     
     def _recenter_camera(self) -> None:

@@ -40,6 +40,10 @@ class HandPanel:
         self.hovered_card = None  # Track which card is being hovered
         self.tooltip_surface = None  # Surface for the tooltip
         
+        # Calculate initial activity log width (same formula as Menu class)
+        screen_width = window_surface.get_width()
+        self.activity_log_width = min(screen_width // 3, 400) + 10  # +10 for padding
+        
         # Log initial state
         draw_count, discard_count, hand_count = self.deck_manager.get_card_counts()
         logger.info(f"Initial deck state - Draw: {draw_count}, Discard: {discard_count}, Hand: {hand_count}")
@@ -58,7 +62,8 @@ class HandPanel:
         
         # Panel takes up bottom 20% of screen
         self.height = min(int(screen_height * 0.2), 150)  # Cap at 150px
-        self.width = screen_width
+        # Adjust width to account for activity log
+        self.width = screen_width - self.activity_log_width
         self.x = 0
         self.y = screen_height - self.height
         
@@ -268,3 +273,9 @@ class HandPanel:
                 text_rect = rendered.get_rect(left=padding, top=y)
                 self.tooltip_surface.blit(rendered, text_rect)
             y += line_height 
+
+    def set_activity_log_width(self, width: int):
+        """Update the activity log width and adjust panel dimensions."""
+        if width != self.activity_log_width:
+            self.activity_log_width = width
+            self.update_dimensions() 
